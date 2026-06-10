@@ -37,5 +37,22 @@ export default {
       }
     },
   },
-  plugins: [],
+  plugins: [
+    function({ addUtilities }) {
+      addUtilities({
+        '.pt-safe-top': {
+          paddingTop: 'env(safe-area-inset-top, 0px)',
+        },
+        '.pb-safe-bottom': {
+          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+        },
+        '.pb-nav': {
+          paddingBottom: 'calc(5rem + env(safe-area-inset-bottom, 0px))',
+        },
+        '.min-h-dvh': {
+          minHeight: ['100vh', '100dvh'],
+        },
+      })
+    }
+  ],
 }

@@ -13,12 +13,13 @@ import AnalyticsPage from './pages/AnalyticsPage'
 import ProfilePage from './pages/ProfilePage'
 import AdminPage from './pages/AdminPage'
 
+// Single spinner shown only during the very first auth check
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+      <div className="min-h-dvh bg-slate-900 flex items-center justify-center">
         <div className="w-10 h-10 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
       </div>
     )
@@ -28,17 +29,13 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+// Checks onboarding — only renders after auth is confirmed (no extra spinner)
 function OnboardingGuard({ children }: { children: React.ReactNode }) {
   const { user } = useAuth()
   const { profile, loading } = useProfile(user?.id)
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <div className="w-10 h-10 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
-      </div>
-    )
-  }
+  // Show nothing (not a spinner) while profile loads — avoids double flash
+  if (loading) return null
 
   if (profile && !profile.onboarding_done) {
     return <Navigate to="/onboarding" replace />
@@ -50,11 +47,9 @@ function OnboardingGuard({ children }: { children: React.ReactNode }) {
 export default function App() {
   return (
     <Routes>
-      {/* Public routes */}
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
 
-      {/* Onboarding (auth required) */}
       <Route
         path="/onboarding"
         element={
@@ -64,7 +59,6 @@ export default function App() {
         }
       />
 
-      {/* Protected routes */}
       <Route
         path="/"
         element={
@@ -125,7 +119,6 @@ export default function App() {
           </ProtectedRoute>
         }
       />
-
       <Route
         path="/admin"
         element={
@@ -135,7 +128,6 @@ export default function App() {
         }
       />
 
-      {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
