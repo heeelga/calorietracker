@@ -42,9 +42,17 @@ export function useAuth() {
     return () => { cancelled = true }
   }, [])
 
+  const [signInError, setSignInError] = useState<string | null>(null)
+
   const signIn = useCallback(async (userId: string, password: string): Promise<boolean> => {
+    setSignInError(null)
     const profile = await db.profiles.get(userId)
     if (!profile) throw new Error('Benutzer nicht gefunden')
+
+    if (profile.is_banned) {
+      setSignInError('Konto gesperrt. Bitte kontaktiere den Administrator.')
+      return false
+    }
 
     const hash = sha256(password)
 
@@ -66,12 +74,14 @@ export function useAuth() {
     return true
   }, [])
 
-  const signUp = useCallback(async (name: string, password: string): Promise<Profile> => {
+  const signUp = useCallback(async (name: string, email: string, password: string): Promise<Profile> => {
     const now = new Date().toISOString()
     const hash = sha256(password)
+    const count = await db.profiles.count()
     const newProfile: Profile = {
       id: generateId(),
       name,
+      email,
       height_cm: null,
       weight_kg: null,
       birth_year: null,
@@ -89,6 +99,8 @@ export function useAuth() {
       last_log_date: null,
       onboarding_done: false,
       password_hash: hash,
+      is_admin: count === 0,
+      is_banned: false,
       created_at: now,
     }
     await db.profiles.add(newProfile)
@@ -104,5 +116,5 @@ export function useAuth() {
     setUser(null)
   }, [])
 
-  return { user, loading, signIn, signUp, signOut, allUsers, refetchUsers: loadUsers }
+  return { user, loading, signIn, signUp, signOut, allUsers, refetchUsers: loadUsers, signInError }
 }

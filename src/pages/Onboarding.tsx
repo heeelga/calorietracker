@@ -36,7 +36,7 @@ export default function Onboarding() {
 
   // Form state
   const [name, setName] = useState(user?.name ?? '')
-  const [gender, setGender] = useState<'male' | 'female' | 'other'>('other')
+  const [gender, setGender] = useState<'male' | 'female' | 'other'>('male')
   const [birthYear, setBirthYear] = useState(1990)
   const [height, setHeight] = useState(170)
   const [weight, setWeight] = useState(70)
@@ -77,6 +77,7 @@ export default function Onboarding() {
   const previewProfile: Profile = {
     id: user?.id ?? '',
     name,
+    email: null,
     gender,
     birth_year: birthYear,
     height_cm: height,
@@ -94,6 +95,8 @@ export default function Onboarding() {
     onboarding_done: false,
     target_weight_kg: goal !== 'maintain' ? targetWeight : null,
     password_hash: null,
+    is_admin: false,
+    is_banned: false,
     created_at: new Date().toISOString(),
   }
 
@@ -165,8 +168,8 @@ export default function Onboarding() {
 
           <div>
             <label className="block text-sm text-slate-400 mb-2">Geschlecht</label>
-            <div className="grid grid-cols-3 gap-2">
-              {([['male', 'Männlich', '♂'], ['female', 'Weiblich', '♀'], ['other', 'Divers', '⚧']] as const).map(
+            <div className="grid grid-cols-2 gap-2">
+              {([['male', 'Männlich', '♂'], ['female', 'Weiblich', '♀']] as const).map(
                 ([val, lbl, icon]) => (
                   <button
                     key={val}

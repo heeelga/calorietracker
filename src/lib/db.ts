@@ -39,6 +39,27 @@ export class CalorieTrackerDB extends Dexie {
         }
       })
     })
+    this.version(3).stores({
+      profiles: 'id, name, email',
+      log_entries: 'id, user_id, log_date, meal_type',
+      weight_log: 'id, user_id, log_date',
+      meals: 'id, user_id, name',
+      meal_ingredients: 'id, meal_id',
+      badges: 'id, user_id, badge_key',
+      favorites: 'id, user_id, food_name',
+    }).upgrade(tx => {
+      return tx.table('profiles').toCollection().modify((profile: Profile) => {
+        if (!('email' in profile)) {
+          (profile as Profile).email = null
+        }
+        if (!('is_admin' in profile)) {
+          (profile as Profile).is_admin = false
+        }
+        if (!('is_banned' in profile)) {
+          (profile as Profile).is_banned = false
+        }
+      })
+    })
   }
 }
 

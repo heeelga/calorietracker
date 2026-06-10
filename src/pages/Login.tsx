@@ -4,7 +4,7 @@ import { useAuth } from '../hooks/useAuth'
 import { Leaf, UserPlus, Eye, EyeOff, ChevronDown } from 'lucide-react'
 
 export default function Login() {
-  const { allUsers, signIn, signUp, loading } = useAuth()
+  const { allUsers, signIn, signUp, loading, signInError } = useAuth()
   const navigate = useNavigate()
 
   // User list state — track which user is expanded for password entry
@@ -17,6 +17,7 @@ export default function Login() {
   // New account form state
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [newName, setNewName] = useState('')
+  const [newEmail, setNewEmail] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [newPasswordConfirm, setNewPasswordConfirm] = useState('')
   const [showNewPassword, setShowNewPassword] = useState(false)
@@ -44,7 +45,7 @@ export default function Login() {
     try {
       const success = await signIn(userId, password)
       if (!success) {
-        setLoginErrors((prev) => ({ ...prev, [userId]: 'Falsches Passwort' }))
+        setLoginErrors((prev) => ({ ...prev, [userId]: signInError ?? 'Falsches Passwort' }))
         return
       }
       // Get updated user to check onboarding
@@ -72,6 +73,11 @@ export default function Login() {
       setCreateError('Bitte einen Namen eingeben')
       return
     }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!newEmail.trim() || !emailRegex.test(newEmail.trim())) {
+      setCreateError('Bitte eine gültige E-Mail-Adresse eingeben')
+      return
+    }
     if (newPassword.length < 4) {
       setCreateError('Passwort muss mindestens 4 Zeichen haben')
       return
@@ -83,7 +89,7 @@ export default function Login() {
 
     setCreating(true)
     try {
-      await signUp(newName.trim(), newPassword)
+      await signUp(newName.trim(), newEmail.trim(), newPassword)
       navigate('/onboarding')
     } catch (err) {
       setCreateError(err instanceof Error ? err.message : 'Fehler beim Erstellen')
@@ -208,6 +214,16 @@ export default function Login() {
                 />
               </div>
               <div>
+                <label className="block text-xs text-slate-400 mb-1">E-Mail</label>
+                <input
+                  type="email"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  placeholder="name@beispiel.de"
+                  className="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-2.5 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500/30 text-sm"
+                />
+              </div>
+              <div>
                 <label className="block text-xs text-slate-400 mb-1">Passwort</label>
                 <div className="relative">
                   <input
@@ -259,6 +275,7 @@ export default function Login() {
                     setShowCreateForm(false)
                     setCreateError(null)
                     setNewName('')
+                    setNewEmail('')
                     setNewPassword('')
                     setNewPasswordConfirm('')
                   }}

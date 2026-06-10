@@ -10,6 +10,7 @@ export const MEAL_TYPE_LABELS: Record<MealType, string> = {
 export interface Profile {
   id: string
   name: string | null
+  email: string | null
   height_cm: number | null
   weight_kg: number | null
   birth_year: number | null
@@ -27,6 +28,8 @@ export interface Profile {
   last_log_date: string | null
   onboarding_done: boolean
   password_hash: string | null
+  is_admin: boolean
+  is_banned: boolean
   created_at: string
 }
 
