@@ -76,4 +76,29 @@ router.post('/login', async (req, res) => {
   }
 })
 
+// GET /api/auth/mtls — auto-login via Traefik X-Forwarded-Tls-Client-Cert-Info header
+router.get('/mtls', async (req, res) => {
+  try {
+    const certInfo = req.headers['x-forwarded-tls-client-cert-info']
+    if (!certInfo) return res.status(401).json({ error: 'Kein Zertifikat' })
+
+    const decoded = decodeURIComponent(certInfo)
+    const cnMatch = decoded.match(/CN=([^,"/]+)/)
+    if (!cnMatch) return res.status(401).json({ error: 'CN nicht gefunden' })
+
+    const cn = cnMatch[1].trim()
+    const [rows] = await pool.query('SELECT * FROM profiles WHERE LOWER(name) = LOWER(?)', [cn])
+    if (rows.length === 0) return res.status(404).json({ error: 'Benutzer nicht gefunden' })
+
+    const profile = rows[0]
+    if (profile.is_banned) return res.status(403).json({ error: 'Konto gesperrt' })
+
+    const token = makeToken(profile)
+    res.json({ token, profile: stripPassword(profile) })
+  } catch (err) {
+    console.error('mTLS error:', err)
+    res.status(500).json({ error: 'Serverfehler' })
+  }
+})
+
 module.exports = router

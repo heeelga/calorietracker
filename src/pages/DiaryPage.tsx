@@ -218,9 +218,9 @@ export default function DiaryPage() {
 
       {/* Add bottom sheet */}
       {addSheetMealType && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center" onClick={closeSheet}>
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={closeSheet}>
           <div
-            className="bg-slate-800 rounded-t-2xl sm:rounded-2xl w-full max-w-md p-5 flex flex-col gap-4 sm:mx-4"
+            className="bg-slate-800 rounded-2xl w-full max-w-md p-5 flex flex-col gap-4 max-h-[85vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">

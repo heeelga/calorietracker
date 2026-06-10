@@ -30,16 +30,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let cancelled = false
     const init = async () => {
+      // Try existing JWT first
       const token = getToken()
-      if (!token) {
-        if (!cancelled) setLoading(false)
-        return
+      if (token) {
+        try {
+          const profile = await api.get('/profile')
+          if (!cancelled) { setUser(profile); setLoading(false) }
+          return
+        } catch {
+          clearToken()
+        }
       }
+      // Try mTLS auto-login (Traefik passes client cert CN)
       try {
-        const profile = await api.get('/profile')
+        const { token: mtlsToken, profile } = await api.get('/auth/mtls')
+        setToken(mtlsToken)
         if (!cancelled) setUser(profile)
       } catch {
-        clearToken()
+        // No cert or user not found — show login normally
       } finally {
         if (!cancelled) setLoading(false)
       }
