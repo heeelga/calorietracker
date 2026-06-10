@@ -7,8 +7,8 @@ import BadgeDisplay from '../components/BadgeDisplay'
 import { api } from '../lib/api'
 import { useQuery } from '@tanstack/react-query'
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, LineChart, Line, ReferenceLine,
+  PieChart, Pie, Cell, LineChart, Line, Tooltip, ResponsiveContainer,
+  XAxis, YAxis, CartesianGrid,
 } from 'recharts'
 import type { LogEntry, WeightEntry } from '../types'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
@@ -73,12 +73,26 @@ export default function AnalyticsPage() {
     enabled: !!user,
   })
 
-  // Build bar chart data
+  const today = new Date().toISOString().split('T')[0]
+  const dailyTarget = profile?.calorie_target ?? 2000
+  const goal = profile?.goal ?? 'maintain'
+
+  // Build per-day data — MariaDB DATE may come back as full ISO string, so slice to 10 chars
   const barData = weekDates.map((date, i) => {
-    const dayEntries = weekEntries.filter((e) => e.log_date === date)
-    const cal = dayEntries.reduce((s, e) => s + Number(e.calories), 0)
-    return { day: DAY_LABELS[i], calories: Math.round(cal), date }
+    const dayEntries = weekEntries.filter((e) => String(e.log_date).slice(0, 10) === date)
+    const cal = Math.round(dayEntries.reduce((s, e) => s + Number(e.calories), 0))
+    const isToday = date === today
+    const isFuture = date > today
+    // "ok" = within goal: for lose/maintain: cal <= target; for gain: cal >= target
+    const ok = cal === 0 ? false : goal === 'gain' ? cal >= dailyTarget : cal <= dailyTarget
+    const status: 'empty' | 'ok' | 'over' = cal === 0 ? 'empty' : ok ? 'ok' : 'over'
+    return { day: DAY_LABELS[i], calories: cal, date, status, isToday, isFuture }
   })
+
+  // Accumulated calories this week
+  const weekTotal = barData.reduce((s, d) => s + d.calories, 0)
+  const weekBudget = dailyTarget * 7
+  const daysElapsed = barData.filter(d => !d.isFuture).length
 
   // Macro pie chart
   const totalProtein = weekEntries.reduce((s, e) => s + Number(e.protein_g), 0)
@@ -91,7 +105,6 @@ export default function AnalyticsPage() {
     { name: 'Fett', value: Math.round(totalFat) },
   ].filter((d) => d.value > 0)
 
-  // Avg calories
   const daysWithData = barData.filter((d) => d.calories > 0)
   const avgCalories = daysWithData.length
     ? Math.round(daysWithData.reduce((s, d) => s + d.calories, 0) / daysWithData.length)
@@ -129,28 +142,73 @@ export default function AnalyticsPage() {
           </div>
         </div>
 
-        {/* Calories bar chart */}
+        {/* Weekly calorie chart */}
         <div className="bg-slate-800 rounded-2xl p-4">
-          <h3 className="text-sm font-semibold text-slate-300 mb-4">Kalorienverlauf</h3>
-          <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={barData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-              <XAxis dataKey="day" tick={{ fill: '#94a3b8', fontSize: 12 }} />
-              <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} />
-              <Tooltip
-                contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '12px' }}
-                labelStyle={{ color: '#f1f5f9' }}
-                itemStyle={{ color: '#22c55e' }}
-              />
-              {profile && (
-                <ReferenceLine y={profile.calorie_target ?? 2000} stroke="#ef4444" strokeDasharray="4 2" strokeWidth={1.5} />
-              )}
-              <Bar dataKey="calories" fill="#22c55e" radius={[4, 4, 0, 0]} name="kcal" />
-            </BarChart>
-          </ResponsiveContainer>
-          {profile && (
-            <p className="text-xs text-red-400 text-center mt-1">— Ziel: {profile.calorie_target} kcal</p>
-          )}
+          <div className="flex justify-between items-baseline mb-3">
+            <h3 className="text-sm font-semibold text-slate-300">Wochenkalorien</h3>
+            <span className="text-xs text-slate-400">Ziel: {dailyTarget} kcal/Tag</span>
+          </div>
+
+          {/* Custom bar chart */}
+          <div className="flex items-end gap-1.5 h-36">
+            {barData.map((d) => {
+              const pct = d.calories > 0 ? Math.min(d.calories / (dailyTarget * 1.3), 1) : 0
+              const barColor = d.status === 'ok' ? '#22c55e' : d.status === 'over' ? '#ef4444' : '#1e293b'
+              const borderColor = d.isToday ? '#22c55e' : 'transparent'
+              return (
+                <div key={d.date} className="flex-1 flex flex-col items-center gap-1">
+                  <span className="text-[9px] text-slate-400 leading-none">
+                    {d.calories > 0 ? d.calories : ''}
+                  </span>
+                  <div className="w-full flex-1 flex items-end relative">
+                    {/* Target line */}
+                    <div
+                      className="absolute w-full border-t border-dashed border-slate-600"
+                      style={{ bottom: `${(1 / 1.3) * 100}%` }}
+                    />
+                    <div
+                      className="w-full rounded-t transition-all duration-500"
+                      style={{
+                        height: `${Math.max(pct * 100, d.calories > 0 ? 4 : 0)}%`,
+                        backgroundColor: d.isFuture ? '#1e293b' : barColor,
+                        outline: d.isToday ? `2px solid ${borderColor}` : 'none',
+                        outlineOffset: '1px',
+                        minHeight: d.calories > 0 ? '4px' : '0',
+                      }}
+                    />
+                  </div>
+                  <span className={`text-[10px] font-medium ${d.isToday ? 'text-green-400' : 'text-slate-400'}`}>
+                    {d.day}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Weekly progress */}
+          <div className="mt-3 pt-3 border-t border-slate-700 flex justify-between items-center">
+            <div>
+              <p className="text-xs text-slate-400">Woche gesamt</p>
+              <p className="text-sm font-semibold text-slate-100">{weekTotal.toLocaleString('de-DE')} kcal</p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-slate-400">Wochenbudget</p>
+              <p className="text-sm font-semibold text-slate-400">{weekBudget.toLocaleString('de-DE')} kcal</p>
+            </div>
+          </div>
+          <div className="mt-2 h-1.5 bg-slate-700 rounded-full overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all"
+              style={{
+                width: `${Math.min((weekTotal / (dailyTarget * daysElapsed || 1)) * 100, 100)}%`,
+                backgroundColor: weekTotal > dailyTarget * daysElapsed ? '#ef4444' : '#22c55e',
+              }}
+            />
+          </div>
+          <div className="mt-2 flex gap-3 text-[10px]">
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-green-500 inline-block"/>Ziel eingehalten</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-red-500 inline-block"/>Ziel überschritten</span>
+          </div>
         </div>
 
         {/* Macro pie chart */}

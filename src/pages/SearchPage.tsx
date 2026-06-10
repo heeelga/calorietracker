@@ -12,10 +12,10 @@ import { getFoodByBarcode } from '../lib/openfoodfacts'
 import { api } from '../lib/api'
 import type { FoodItem, MealType, FavoriteFood } from '../types'
 import { useQuery } from '@tanstack/react-query'
-import { Camera, Heart, ChefHat, Loader2, Clock } from 'lucide-react'
+import { Camera, Heart, Loader2, Clock } from 'lucide-react'
 import { useBadgeNotification } from '../contexts/BadgeNotificationContext'
 
-type Tab = 'search' | 'recent' | 'pinned' | 'custom'
+type Tab = 'search' | 'recent' | 'pinned'
 
 const today = new Date().toISOString().split('T')[0]
 
@@ -45,8 +45,6 @@ export default function SearchPage() {
     },
     enabled: !!user,
   })
-
-  const customFoods: FoodItem[] = []
 
   const togglePin = async (fav: FavoriteFood, e: React.MouseEvent) => {
     e.stopPropagation()
@@ -144,7 +142,6 @@ export default function SearchPage() {
     { key: 'search', label: 'Suche', icon: null },
     { key: 'recent', label: 'Zuletzt', icon: <Clock size={12} /> },
     { key: 'pinned', label: 'Favoriten', icon: <Heart size={12} /> },
-    { key: 'custom', label: 'Eigene', icon: <ChefHat size={12} /> },
   ]
 
   return (
@@ -250,34 +247,6 @@ export default function SearchPage() {
               </div>
             )}
 
-            {tab === 'custom' && (
-              <div className="flex flex-col gap-2">
-                {customFoods.length === 0 ? (
-                  <p className="text-slate-400 text-sm text-center py-8">
-                    Noch keine eigenen Lebensmittel.
-                  </p>
-                ) : (
-                  customFoods.map((food) => (
-                    <button
-                      key={food.id}
-                      onClick={() => handleFoodSelect(food)}
-                      className="flex items-center gap-3 p-3 bg-slate-800 rounded-xl hover:bg-slate-700 transition-colors text-left"
-                    >
-                      <ChefHat size={16} className="text-slate-400 flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-slate-100 truncate">{food.name}</p>
-                        {food.brand && (
-                          <p className="text-xs text-slate-400">{food.brand}</p>
-                        )}
-                      </div>
-                      <p className="text-xs text-green-400 font-medium flex-shrink-0">
-                        {food.calories_per_100g} kcal/100g
-                      </p>
-                    </button>
-                  ))
-                )}
-              </div>
-            )}
           </>
         )}
 

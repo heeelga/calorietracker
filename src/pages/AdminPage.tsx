@@ -161,12 +161,12 @@ export default function AdminPage() {
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-semibold text-slate-100">{u.name ?? 'Unbenannt'}</p>
-                      {u.is_admin && (
+                      {!!u.is_admin && (
                         <span className="px-1.5 py-0.5 bg-green-500/20 text-green-400 text-[10px] rounded-md font-medium">
                           Admin
                         </span>
                       )}
-                      {u.is_banned && (
+                      {!!u.is_banned && (
                         <span className="px-1.5 py-0.5 bg-red-500/20 text-red-400 text-[10px] rounded-md font-medium">
                           Gesperrt
                         </span>
