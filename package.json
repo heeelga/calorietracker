@@ -13,6 +13,7 @@
     "@zxing/library": "^0.20.0",
     "dexie": "^3.2.7",
     "dexie-react-hooks": "^1.1.7",
+    "js-sha256": "^0.11.1",
     "lucide-react": "^0.303.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

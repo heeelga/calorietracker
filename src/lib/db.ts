@@ -21,6 +21,24 @@ export class CalorieTrackerDB extends Dexie {
       badges: 'id, user_id, badge_key',
       favorites: 'id, user_id, food_name',
     })
+    this.version(2).stores({
+      profiles: 'id, name',
+      log_entries: 'id, user_id, log_date, meal_type',
+      weight_log: 'id, user_id, log_date',
+      meals: 'id, user_id, name',
+      meal_ingredients: 'id, meal_id',
+      badges: 'id, user_id, badge_key',
+      favorites: 'id, user_id, food_name',
+    }).upgrade(tx => {
+      return tx.table('profiles').toCollection().modify((profile: Profile) => {
+        if (!('password_hash' in profile)) {
+          (profile as Profile).password_hash = null
+        }
+        if (!('target_weight_kg' in profile)) {
+          (profile as Profile).target_weight_kg = null
+        }
+      })
+    })
   }
 }
 

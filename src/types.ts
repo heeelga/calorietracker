@@ -16,6 +16,7 @@ export interface Profile {
   gender: 'male' | 'female' | 'other' | null
   activity_level: 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active' | null
   goal: 'lose' | 'maintain' | 'gain' | null
+  target_weight_kg: number | null
   calorie_target: number | null
   protein_target_g: number | null
   carbs_target_g: number | null
@@ -25,6 +26,7 @@ export interface Profile {
   streak_days: number
   last_log_date: string | null
   onboarding_done: boolean
+  password_hash: string | null
   created_at: string
 }
 

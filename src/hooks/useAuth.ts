@@ -1,3 +1,4 @@
+import { sha256 } from 'js-sha256'
 import { generateId } from '../lib/uuid'
 import { useState, useEffect, useCallback } from 'react'
 import { db } from '../lib/db'
@@ -29,11 +30,9 @@ export function useAuth() {
         if (storedId) {
           const profile = await db.profiles.get(storedId)
           if (!cancelled) setUser(profile ?? null)
-        } else if (profiles.length === 1) {
-          // Auto-login when there is exactly one profile
-          localStorage.setItem(CURRENT_USER_KEY, profiles[0].id)
-          if (!cancelled) setUser(profiles[0])
         }
+        // Note: we no longer auto-login even for single-profile cases
+        // because we now require password authentication
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -43,15 +42,33 @@ export function useAuth() {
     return () => { cancelled = true }
   }, [])
 
-  const signIn = useCallback(async (userId: string) => {
+  const signIn = useCallback(async (userId: string, password: string): Promise<boolean> => {
     const profile = await db.profiles.get(userId)
     if (!profile) throw new Error('Benutzer nicht gefunden')
+
+    const hash = sha256(password)
+
+    if (profile.password_hash === null) {
+      // Legacy profile without password — allow login and set password
+      await db.profiles.update(userId, { password_hash: hash })
+      const updated = await db.profiles.get(userId)
+      localStorage.setItem(CURRENT_USER_KEY, userId)
+      setUser(updated ?? profile)
+      return true
+    }
+
+    if (hash !== profile.password_hash) {
+      return false
+    }
+
     localStorage.setItem(CURRENT_USER_KEY, userId)
     setUser(profile)
+    return true
   }, [])
 
-  const signUp = useCallback(async (name: string) => {
+  const signUp = useCallback(async (name: string, password: string): Promise<Profile> => {
     const now = new Date().toISOString()
+    const hash = sha256(password)
     const newProfile: Profile = {
       id: generateId(),
       name,
@@ -61,6 +78,7 @@ export function useAuth() {
       gender: null,
       activity_level: null,
       goal: null,
+      target_weight_kg: null,
       calorie_target: null,
       protein_target_g: null,
       carbs_target_g: null,
@@ -70,6 +88,7 @@ export function useAuth() {
       streak_days: 0,
       last_log_date: null,
       onboarding_done: false,
+      password_hash: hash,
       created_at: now,
     }
     await db.profiles.add(newProfile)

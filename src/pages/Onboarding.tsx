@@ -58,6 +58,8 @@ export default function Onboarding() {
     streak_days: 0,
     last_log_date: null,
     onboarding_done: false,
+    target_weight_kg: null,
+    password_hash: null,
     created_at: new Date().toISOString(),
   }
   const targets = calculateTargets(previewProfile)
