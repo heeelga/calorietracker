@@ -4,12 +4,14 @@ import { useAuth } from '../hooks/useAuth'
 import { useDailyLog } from '../hooks/useDailyLog'
 import Layout from '../components/Layout'
 import FoodSearch from '../components/FoodSearch'
+import BarcodeScanner from '../components/BarcodeScanner'
 import PortionSelector from '../components/PortionSelector'
 import { api } from '../lib/api'
+import { getFoodByBarcode } from '../lib/openfoodfacts'
 import type { Meal, MealIngredient, MealType, FoodItem, MealShare } from '../types'
 import { MEAL_TYPE_LABELS } from '../types'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, ChevronRight, Trash2, UtensilsCrossed, X, Share2, User } from 'lucide-react'
+import { Plus, ChevronRight, Trash2, UtensilsCrossed, X, Share2, User, Camera, Loader2 } from 'lucide-react'
 import { calculateNutrition } from '../lib/nutrition'
 
 const today = new Date().toISOString().split('T')[0]
@@ -33,6 +35,9 @@ export default function MealsPage() {
   const [saving, setSaving] = useState(false)
   const [logMealType, setLogMealType] = useState<MealType>('lunch')
   const [logSuccess, setLogSuccess] = useState(false)
+  const [showIngScanner, setShowIngScanner] = useState(false)
+  const [ingScanning, setIngScanning] = useState(false)
+  const [ingScanError, setIngScanError] = useState<string | null>(null)
 
   // Share modal state
   const [shareModalMeal, setShareModalMeal] = useState<Meal | null>(null)
@@ -93,6 +98,25 @@ export default function MealsPage() {
   const handleAddIngredient = (food: FoodItem) => {
     setSelectedFood(food)
     setAddingFood(false)
+  }
+
+  const handleIngScan = async (barcode: string) => {
+    setShowIngScanner(false)
+    setIngScanning(true)
+    setIngScanError(null)
+    try {
+      const food = await getFoodByBarcode(barcode)
+      if (food) {
+        setSelectedFood(food)
+        setAddingFood(false)
+      } else {
+        setIngScanError(`Produkt mit Barcode ${barcode} nicht gefunden.`)
+      }
+    } catch {
+      setIngScanError('Fehler beim Barcode-Lookup.')
+    } finally {
+      setIngScanning(false)
+    }
   }
 
   const handleConfirmIngredient = (amountGrams: number, portionLabel: string) => {
@@ -318,10 +342,28 @@ export default function MealsPage() {
               <div className="bg-slate-800 rounded-2xl p-4">
                 <div className="flex items-center justify-between mb-3">
                   <h4 className="text-sm font-semibold text-slate-300">Zutat suchen</h4>
-                  <button onClick={() => setAddingFood(false)} className="text-slate-400">
-                    <X size={16} />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setShowIngScanner(true)}
+                      className="flex items-center gap-1 text-sm text-green-400 font-medium hover:text-green-300"
+                    >
+                      <Camera size={15} />
+                      Scan
+                    </button>
+                    <button onClick={() => setAddingFood(false)} className="text-slate-400">
+                      <X size={16} />
+                    </button>
+                  </div>
                 </div>
+                {ingScanning && (
+                  <div className="flex items-center gap-2 text-slate-400 text-sm mb-2">
+                    <Loader2 size={14} className="animate-spin" />
+                    Produkt wird geladen...
+                  </div>
+                )}
+                {ingScanError && (
+                  <p className="text-red-400 text-xs mb-2">{ingScanError}</p>
+                )}
                 <FoodSearch onSelect={handleAddIngredient} autoFocus />
               </div>
             ) : (
@@ -341,6 +383,13 @@ export default function MealsPage() {
             >
               {saving ? 'Speichern...' : 'Gericht speichern'}
             </button>
+
+            {showIngScanner && (
+              <BarcodeScanner
+                onScan={handleIngScan}
+                onClose={() => setShowIngScanner(false)}
+              />
+            )}
           </>
         )}
 

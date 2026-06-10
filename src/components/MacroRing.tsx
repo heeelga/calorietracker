@@ -94,6 +94,8 @@ export default function MacroRing({
   const target = calorieTarget ?? 2000
   const remaining = Math.max(target - calories, 0)
   const over = calories > target
+  const pct = Math.min(calories / target, 1) * 100
+  const ringColor = over ? '#ef4444' : pct >= 90 ? '#ef4444' : pct >= 70 ? '#f97316' : '#22c55e'
 
   return (
     <div className="bg-slate-800 rounded-2xl p-4 shadow-lg">
@@ -103,7 +105,7 @@ export default function MacroRing({
           <CircleProgress
             value={calories}
             max={target}
-            color={over ? '#ef4444' : '#22c55e'}
+            color={ringColor}
             size={130}
             strokeWidth={12}
           />
@@ -111,7 +113,7 @@ export default function MacroRing({
             <span className="text-2xl font-bold text-slate-100">{Math.round(calories)}</span>
             <span className="text-xs text-slate-400">kcal</span>
             <span className="text-[10px] text-slate-500 mt-0.5">
-              {over ? 'überschritten' : `${remaining} übrig`}
+              {over ? 'überschritten' : `${Math.round(remaining)} übrig`}
             </span>
           </div>
         </div>

@@ -107,6 +107,7 @@ CREATE TABLE IF NOT EXISTS favorites (
   fiber_per_100g DECIMAL(8,2) DEFAULT 0,
   image_url TEXT,
   package_weight_g DECIMAL(8,2),
+  is_favorite BOOLEAN DEFAULT FALSE,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_user (user_id)
 );

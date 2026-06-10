@@ -127,8 +127,8 @@ export default function Dashboard() {
                       />
                       {val > 0 && (
                         <span
-                          className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 text-sm leading-none ${pct > 1 && pct < 100 ? 'animate-bounce' : ''}`}
-                          style={{ left: `${Math.min(pct, 98)}%` }}
+                          className={`absolute top-1/2 -translate-y-1/2 -translate-x-full text-sm leading-none ${pct > 1 && pct < 100 ? 'animate-bounce' : ''}`}
+                          style={{ left: `${Math.min(pct, 100)}%` }}
                         >
                           {over ? '💥' : '🔥'}
                         </span>

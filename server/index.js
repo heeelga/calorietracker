@@ -46,6 +46,10 @@ async function initDB() {
   for (const stmt of statements) {
     await pool.query(stmt)
   }
+  // Migrations for existing databases
+  try {
+    await pool.query('ALTER TABLE favorites ADD COLUMN is_favorite BOOLEAN DEFAULT FALSE')
+  } catch (_) { /* column already exists */ }
   console.log('Datenbankschema initialisiert')
 }
 

@@ -121,6 +121,7 @@ export interface FavoriteFood {
   fiber_per_100g: number
   image_url: string | null
   package_weight_g: number | null
+  is_favorite: boolean
   created_at: string
 }
 

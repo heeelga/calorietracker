@@ -87,7 +87,10 @@ router.get('/mtls', async (req, res) => {
     if (!cnMatch) return res.status(401).json({ error: 'CN nicht gefunden' })
 
     const cn = cnMatch[1].trim()
-    const [rows] = await pool.query('SELECT * FROM profiles WHERE LOWER(name) = LOWER(?)', [cn])
+    const [rows] = await pool.query(
+      'SELECT * FROM profiles WHERE LOWER(name) = LOWER(?) OR LOWER(email) = LOWER(?)',
+      [cn, cn]
+    )
     if (rows.length === 0) return res.status(404).json({ error: 'Benutzer nicht gefunden' })
 
     const profile = rows[0]

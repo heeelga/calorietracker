@@ -1,9 +1,10 @@
 import { NavLink } from 'react-router-dom'
-import { BookOpen, Search, UtensilsCrossed, BarChart2, User, ShieldCheck } from 'lucide-react'
+import { Home, BookOpen, Search, UtensilsCrossed, BarChart2, User, ShieldCheck } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useProfile } from '../hooks/useProfile'
 
 const baseNavItems = [
+  { to: '/', icon: Home, label: 'Start' },
   { to: '/diary', icon: BookOpen, label: 'Tagebuch' },
   { to: '/search', icon: Search, label: 'Suche' },
   { to: '/meals', icon: UtensilsCrossed, label: 'Gerichte' },
@@ -26,6 +27,7 @@ export default function BottomNav() {
           <NavLink
             key={to}
             to={to}
+            end={to === '/'}
             className={({ isActive }) =>
               `flex flex-col items-center justify-center flex-1 py-2 gap-0.5 transition-colors ${
                 isActive ? 'text-green-500' : 'text-slate-400 hover:text-slate-200'

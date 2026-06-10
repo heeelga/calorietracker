@@ -60,6 +60,23 @@ router.post('/', requireAuth, async (req, res) => {
   }
 })
 
+// PUT /api/favorites/:id/pin — toggle is_favorite
+router.put('/:id/pin', requireAuth, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT id, is_favorite FROM favorites WHERE id = ? AND user_id = ?',
+      [req.params.id, req.user.id]
+    )
+    if (rows.length === 0) return res.status(404).json({ error: 'Favorit nicht gefunden' })
+    const newVal = rows[0].is_favorite ? 0 : 1
+    await pool.query('UPDATE favorites SET is_favorite = ? WHERE id = ?', [newVal, req.params.id])
+    res.json({ is_favorite: !!newVal })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Serverfehler' })
+  }
+})
+
 // DELETE /api/favorites/:id
 router.delete('/:id', requireAuth, async (req, res) => {
   try {

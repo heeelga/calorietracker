@@ -12,10 +12,10 @@ import { getFoodByBarcode } from '../lib/openfoodfacts'
 import { api } from '../lib/api'
 import type { FoodItem, MealType, FavoriteFood } from '../types'
 import { useQuery } from '@tanstack/react-query'
-import { Camera, Heart, ChefHat, Loader2 } from 'lucide-react'
+import { Camera, Heart, ChefHat, Loader2, Clock } from 'lucide-react'
 import { useBadgeNotification } from '../contexts/BadgeNotificationContext'
 
-type Tab = 'search' | 'favorites' | 'custom'
+type Tab = 'search' | 'recent' | 'pinned' | 'custom'
 
 const today = new Date().toISOString().split('T')[0]
 
@@ -47,6 +47,12 @@ export default function SearchPage() {
   })
 
   const customFoods: FoodItem[] = []
+
+  const togglePin = async (fav: FavoriteFood, e: React.MouseEvent) => {
+    e.stopPropagation()
+    await api.put(`/favorites/${fav.id}/pin`, {})
+    refetchFavorites()
+  }
 
   const handleScan = async (barcode: string) => {
     setShowScanner(false)
@@ -136,7 +142,8 @@ export default function SearchPage() {
 
   const tabs: { key: Tab; label: string; icon: React.ReactNode }[] = [
     { key: 'search', label: 'Suche', icon: null },
-    { key: 'favorites', label: 'Favoriten', icon: <Heart size={12} /> },
+    { key: 'recent', label: 'Zuletzt', icon: <Clock size={12} /> },
+    { key: 'pinned', label: 'Favoriten', icon: <Heart size={12} /> },
     { key: 'custom', label: 'Eigene', icon: <ChefHat size={12} /> },
   ]
 
@@ -204,32 +211,42 @@ export default function SearchPage() {
               <FoodSearch onSelect={handleFoodSelect} autoFocus />
             )}
 
-            {tab === 'favorites' && (
+            {(tab === 'recent' || tab === 'pinned') && (
               <div className="flex flex-col gap-2">
-                {favorites.length === 0 ? (
-                  <p className="text-slate-400 text-sm text-center py-8">
-                    Noch keine Favoriten. Lebensmittel werden automatisch gespeichert.
-                  </p>
-                ) : (
-                  favorites.map((fav) => (
-                    <button
-                      key={fav.id}
-                      onClick={() => handleFoodSelect(handleFavoriteFood(fav))}
-                      className="flex items-center gap-3 p-3 bg-slate-800 rounded-xl hover:bg-slate-700 transition-colors text-left"
-                    >
-                      <Heart size={16} className="text-red-400 flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
+                {(() => {
+                  const list = tab === 'pinned' ? favorites.filter(f => f.is_favorite) : favorites
+                  if (list.length === 0) return (
+                    <p className="text-slate-400 text-sm text-center py-8">
+                      {tab === 'pinned' ? 'Noch keine Favoriten. Tippe auf das Herz um ein Lebensmittel zu merken.' : 'Noch keine Einträge.'}
+                    </p>
+                  )
+                  return list.map((fav) => (
+                    <div key={fav.id} className="flex items-center gap-3 p-3 bg-slate-800 rounded-xl hover:bg-slate-700 transition-colors">
+                      <button
+                        onClick={(e) => togglePin(fav, e)}
+                        className="flex-shrink-0 p-1 -m-1"
+                      >
+                        <Heart
+                          size={16}
+                          className={fav.is_favorite ? 'text-red-400 fill-red-400' : 'text-slate-500'}
+                          fill={fav.is_favorite ? 'currentColor' : 'none'}
+                        />
+                      </button>
+                      <button
+                        onClick={() => handleFoodSelect(handleFavoriteFood(fav))}
+                        className="flex-1 min-w-0 text-left"
+                      >
                         <p className="text-sm font-medium text-slate-100 truncate">{fav.food_name}</p>
                         {fav.food_brand && (
                           <p className="text-xs text-slate-400">{fav.food_brand}</p>
                         )}
-                      </div>
-                      <p className="text-xs text-green-400 font-medium flex-shrink-0">
-                        {fav.calories_per_100g} kcal/100g
-                      </p>
-                    </button>
+                      </button>
+                      <span className="text-xs text-green-400 font-medium flex-shrink-0">
+                        {Math.round(Number(fav.calories_per_100g))} kcal/100g
+                      </span>
+                    </div>
                   ))
-                )}
+                })()}
               </div>
             )}
 
