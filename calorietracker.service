@@ -1,0 +1,17 @@
+[Unit]
+Description=CalorieTracker Web App
+After=network.target mariadb.service
+Requires=mariadb.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/var/www/calorietracker/server
+ExecStart=/usr/bin/node index.js
+Restart=on-failure
+RestartSec=5
+Environment=NODE_ENV=production
+EnvironmentFile=/var/www/calorietracker/server/.env
+
+[Install]
+WantedBy=multi-user.target
