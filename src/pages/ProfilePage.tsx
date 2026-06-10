@@ -1,0 +1,295 @@
+import { useState, type FormEvent } from 'react'
+import { useAuth } from '../hooks/useAuth'
+import { useProfile } from '../hooks/useProfile'
+import { calculateTargets } from '../lib/nutrition'
+import Layout from '../components/Layout'
+import { LogOut, Save, RefreshCw, Flame, Star } from 'lucide-react'
+
+const ACTIVITY_LABELS: Record<string, string> = {
+  sedentary: 'Sitzend',
+  light: 'Leicht aktiv',
+  moderate: 'Mäßig aktiv',
+  active: 'Aktiv',
+  very_active: 'Sehr aktiv',
+}
+
+const GOAL_LABELS: Record<string, string> = {
+  lose: 'Abnehmen',
+  maintain: 'Gewicht halten',
+  gain: 'Zunehmen',
+}
+
+export default function ProfilePage() {
+  const { user, signOut } = useAuth()
+  const { profile, loading, updateProfile } = useProfile(user?.id)
+  const [editing, setEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [success, setSuccess] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // Edit form state
+  const [name, setName] = useState('')
+  const [height, setHeight] = useState(170)
+  const [weight, setWeight] = useState(70)
+  const [birthYear, setBirthYear] = useState(1990)
+  const [gender, setGender] = useState<'male' | 'female' | 'other'>('other')
+  const [activityLevel, setActivityLevel] = useState('moderate')
+  const [goal, setGoal] = useState('maintain')
+
+  const startEditing = () => {
+    if (!profile) return
+    setName(profile.name ?? '')
+    setHeight(profile.height_cm ?? 170)
+    setWeight(profile.weight_kg ?? 70)
+    setBirthYear(profile.birth_year ?? 1990)
+    setGender(profile.gender ?? 'other')
+    setActivityLevel(profile.activity_level ?? 'moderate')
+    setGoal(profile.goal ?? 'maintain')
+    setEditing(true)
+  }
+
+  const handleSave = async (e: FormEvent) => {
+    e.preventDefault()
+    setSaving(true)
+    setError(null)
+    try {
+      await updateProfile({
+        name,
+        height_cm: height,
+        weight_kg: weight,
+        birth_year: birthYear,
+        gender,
+        activity_level: activityLevel as 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active',
+        goal: goal as 'lose' | 'maintain' | 'gain',
+      })
+      setSuccess(true)
+      setEditing(false)
+      setTimeout(() => setSuccess(false), 2000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Fehler beim Speichern')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleRecalculate = async () => {
+    if (!profile) return
+    setSaving(true)
+    try {
+      const targets = calculateTargets(profile)
+      await updateProfile({
+        calorie_target: targets.calories,
+        protein_target_g: targets.protein,
+        carbs_target_g: targets.carbs,
+        fat_target_g: targets.fat,
+      })
+      setSuccess(true)
+      setTimeout(() => setSuccess(false), 2000)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <Layout title="Profil" showNav>
+        <div className="flex justify-center py-12">
+          <div className="w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      </Layout>
+    )
+  }
+
+  const xpProgress = profile ? ((profile.xp % 100) / 100) * 100 : 0
+  const initials = profile?.name
+    ? profile.name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
+    : '?'
+
+  return (
+    <Layout title="Profil" showNav>
+      <div className="flex flex-col gap-4 px-4 py-4">
+        {/* Avatar + name + level */}
+        <div className="bg-slate-800 rounded-2xl p-5 flex items-center gap-4">
+          <div className="w-16 h-16 bg-green-500 rounded-2xl flex items-center justify-center text-white text-2xl font-bold flex-shrink-0">
+            {initials}
+          </div>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-xl font-bold text-slate-100 truncate">{profile?.name ?? 'Benutzer'}</h2>
+            <p className="text-sm text-slate-400 truncate">{user?.email}</p>
+            <div className="flex items-center gap-3 mt-2">
+              <div className="flex items-center gap-1">
+                <Star size={14} className="text-yellow-400" />
+                <span className="text-sm font-semibold text-yellow-400">Level {profile?.level ?? 1}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Flame size={14} className="text-orange-400" />
+                <span className="text-sm text-orange-400">{profile?.streak_days ?? 0} Tage Serie</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* XP progress */}
+        {profile && (
+          <div className="bg-slate-800 rounded-2xl px-4 py-3">
+            <div className="flex justify-between items-center mb-1.5">
+              <span className="text-xs text-slate-400">XP-Fortschritt</span>
+              <span className="text-xs text-slate-400">{profile.xp % 100} / 100 XP</span>
+            </div>
+            <div className="h-2.5 bg-slate-700 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-green-500 to-emerald-400 rounded-full transition-all"
+                style={{ width: `${xpProgress}%` }}
+              />
+            </div>
+            <p className="text-xs text-slate-500 mt-1">Gesamt: {profile.xp} XP</p>
+          </div>
+        )}
+
+        {/* Current targets */}
+        {profile && !editing && (
+          <div className="bg-slate-800 rounded-2xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-slate-300">Tagesziele</h3>
+              <button
+                onClick={handleRecalculate}
+                className="flex items-center gap-1 text-xs text-green-400 hover:text-green-300"
+              >
+                <RefreshCw size={12} />
+                Neu berechnen
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-slate-700 rounded-xl p-3">
+                <p className="text-xs text-slate-400">Kalorien</p>
+                <p className="text-xl font-bold text-green-400">{profile.calorie_target}</p>
+                <p className="text-[10px] text-slate-500">kcal/Tag</p>
+              </div>
+              <div className="bg-slate-700 rounded-xl p-3">
+                <p className="text-xs text-slate-400">Eiweiß</p>
+                <p className="text-xl font-bold text-slate-100">{profile.protein_target_g}g</p>
+              </div>
+              <div className="bg-slate-700 rounded-xl p-3">
+                <p className="text-xs text-slate-400">Kohlenhydrate</p>
+                <p className="text-xl font-bold text-slate-100">{profile.carbs_target_g}g</p>
+              </div>
+              <div className="bg-slate-700 rounded-xl p-3">
+                <p className="text-xs text-slate-400">Fett</p>
+                <p className="text-xl font-bold text-slate-100">{profile.fat_target_g}g</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Profile info / edit */}
+        {!editing ? (
+          <div className="bg-slate-800 rounded-2xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-slate-300">Meine Daten</h3>
+              <button onClick={startEditing} className="text-xs text-green-400 font-medium hover:text-green-300">
+                Bearbeiten
+              </button>
+            </div>
+            <div className="flex flex-col gap-2">
+              {[
+                ['Größe', profile?.height_cm ? `${profile.height_cm} cm` : '—'],
+                ['Gewicht', profile?.weight_kg ? `${profile.weight_kg} kg` : '—'],
+                ['Aktivität', ACTIVITY_LABELS[profile?.activity_level ?? ''] ?? '—'],
+                ['Ziel', GOAL_LABELS[profile?.goal ?? ''] ?? '—'],
+              ].map(([label, value]) => (
+                <div key={label} className="flex justify-between py-1.5 border-b border-slate-700/50 last:border-0">
+                  <span className="text-sm text-slate-400">{label}</span>
+                  <span className="text-sm font-medium text-slate-100">{value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={handleSave} className="bg-slate-800 rounded-2xl p-4 flex flex-col gap-3">
+            <h3 className="text-sm font-semibold text-slate-300">Profil bearbeiten</h3>
+            <div>
+              <label className="text-xs text-slate-400 block mb-1">Name</label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full bg-slate-700 border border-slate-600 rounded-xl px-3 py-2 text-slate-100 text-sm focus:outline-none focus:border-green-500"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">Größe (cm)</label>
+                <input type="number" value={height} onChange={(e) => setHeight(parseInt(e.target.value))} min={140} max={220}
+                  className="w-full bg-slate-700 border border-slate-600 rounded-xl px-3 py-2 text-slate-100 text-sm focus:outline-none focus:border-green-500" />
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">Gewicht (kg)</label>
+                <input type="number" value={weight} onChange={(e) => setWeight(parseFloat(e.target.value))} min={30} max={300} step={0.1}
+                  className="w-full bg-slate-700 border border-slate-600 rounded-xl px-3 py-2 text-slate-100 text-sm focus:outline-none focus:border-green-500" />
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">Geburtsjahr</label>
+                <input type="number" value={birthYear} onChange={(e) => setBirthYear(parseInt(e.target.value))} min={1940} max={2005}
+                  className="w-full bg-slate-700 border border-slate-600 rounded-xl px-3 py-2 text-slate-100 text-sm focus:outline-none focus:border-green-500" />
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">Geschlecht</label>
+                <select value={gender} onChange={(e) => setGender(e.target.value as 'male' | 'female' | 'other')}
+                  className="w-full bg-slate-700 border border-slate-600 rounded-xl px-3 py-2 text-slate-100 text-sm focus:outline-none focus:border-green-500">
+                  <option value="male">Männlich</option>
+                  <option value="female">Weiblich</option>
+                  <option value="other">Divers</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="text-xs text-slate-400 block mb-1">Aktivitätslevel</label>
+              <select value={activityLevel} onChange={(e) => setActivityLevel(e.target.value)}
+                className="w-full bg-slate-700 border border-slate-600 rounded-xl px-3 py-2 text-slate-100 text-sm focus:outline-none focus:border-green-500">
+                {Object.entries(ACTIVITY_LABELS).map(([v, l]) => (
+                  <option key={v} value={v}>{l}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-slate-400 block mb-1">Ziel</label>
+              <select value={goal} onChange={(e) => setGoal(e.target.value)}
+                className="w-full bg-slate-700 border border-slate-600 rounded-xl px-3 py-2 text-slate-100 text-sm focus:outline-none focus:border-green-500">
+                {Object.entries(GOAL_LABELS).map(([v, l]) => (
+                  <option key={v} value={v}>{l}</option>
+                ))}
+              </select>
+            </div>
+            {error && <p className="text-red-400 text-sm">{error}</p>}
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setEditing(false)}
+                className="flex-1 py-2.5 bg-slate-700 text-slate-300 font-semibold rounded-xl hover:bg-slate-600">
+                Abbrechen
+              </button>
+              <button type="submit" disabled={saving}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-green-500 text-white font-semibold rounded-xl hover:bg-green-600 disabled:opacity-50">
+                <Save size={16} />
+                {saving ? 'Speichern...' : 'Speichern'}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {success && (
+          <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-3 text-center">
+            <p className="text-green-400 text-sm font-medium">Gespeichert!</p>
+          </div>
+        )}
+
+        {/* Sign out */}
+        <button
+          onClick={signOut}
+          className="flex items-center justify-center gap-2 py-3 bg-red-500/10 border border-red-500/20 text-red-400 font-semibold rounded-xl hover:bg-red-500/20 transition-colors"
+        >
+          <LogOut size={16} />
+          Abmelden
+        </button>
+      </div>
+    </Layout>
+  )
+}
