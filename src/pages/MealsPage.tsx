@@ -424,7 +424,7 @@ export default function MealsPage() {
 
       {/* Share Modal */}
       {shareModalMeal && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center p-4">
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-4">
           <div className="bg-slate-800 rounded-2xl w-full max-w-md p-5 flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <h3 className="font-semibold text-slate-100">Rezept teilen</h3>

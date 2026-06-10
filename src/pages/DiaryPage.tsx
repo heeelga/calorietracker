@@ -170,7 +170,7 @@ export default function DiaryPage() {
                             <div className="text-right">
                               <p className="text-sm font-semibold text-green-400">{Math.round(entry.calories)} kcal</p>
                               <p className="text-[10px] text-slate-400">
-                                E:{entry.protein_g.toFixed(0)} K:{entry.carbs_g.toFixed(0)} F:{entry.fat_g.toFixed(0)}
+                                E:{Number(entry.protein_g).toFixed(0)} K:{Number(entry.carbs_g).toFixed(0)} F:{Number(entry.fat_g).toFixed(0)}
                               </p>
                             </div>
                             <button
@@ -198,15 +198,15 @@ export default function DiaryPage() {
                     <p className="text-[10px] text-slate-400">kcal</p>
                   </div>
                   <div>
-                    <p className="text-lg font-bold text-slate-100">{totals.protein_g.toFixed(0)}</p>
+                    <p className="text-lg font-bold text-slate-100">{Number(totals.protein_g).toFixed(0)}</p>
                     <p className="text-[10px] text-slate-400">Eiweiß g</p>
                   </div>
                   <div>
-                    <p className="text-lg font-bold text-slate-100">{totals.carbs_g.toFixed(0)}</p>
+                    <p className="text-lg font-bold text-slate-100">{Number(totals.carbs_g).toFixed(0)}</p>
                     <p className="text-[10px] text-slate-400">Kohlenhydr. g</p>
                   </div>
                   <div>
-                    <p className="text-lg font-bold text-slate-100">{totals.fat_g.toFixed(0)}</p>
+                    <p className="text-lg font-bold text-slate-100">{Number(totals.fat_g).toFixed(0)}</p>
                     <p className="text-[10px] text-slate-400">Fett g</p>
                   </div>
                 </div>
@@ -218,9 +218,9 @@ export default function DiaryPage() {
 
       {/* Add bottom sheet */}
       {addSheetMealType && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center" onClick={closeSheet}>
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center" onClick={closeSheet}>
           <div
-            className="bg-slate-800 rounded-t-2xl w-full max-w-md p-5 flex flex-col gap-4"
+            className="bg-slate-800 rounded-t-2xl sm:rounded-2xl w-full max-w-md p-5 flex flex-col gap-4 sm:mx-4"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
