@@ -56,7 +56,9 @@ export default function Onboarding() {
     xp: 0,
     level: 1,
     streak_days: 0,
+    last_log_date: null,
     onboarding_done: false,
+    created_at: new Date().toISOString(),
   }
   const targets = calculateTargets(previewProfile)
 

@@ -79,17 +79,18 @@ export default function SearchPage() {
   }
 
   const handleFavoriteFood = (fav: FavoriteFood): FoodItem => ({
-    id: fav.food_id,
+    id: fav.food_id ?? fav.id,
     name: fav.food_name,
-    brand: fav.food_brand,
+    brand: fav.food_brand ?? undefined,
     calories_per_100g: fav.calories_per_100g,
     protein_per_100g: fav.protein_per_100g,
     carbs_per_100g: fav.carbs_per_100g,
     fat_per_100g: fav.fat_per_100g,
     fiber_per_100g: fav.fiber_per_100g,
-    barcode: fav.barcode,
-    package_weight_g: fav.package_weight_g,
-    image_url: fav.image_url,
+    barcode: fav.barcode ?? undefined,
+    package_weight_g: fav.package_weight_g ?? undefined,
+    image_url: fav.image_url ?? undefined,
+    source: 'manual' as const,
   })
 
   const handleConfirmPortion = async (amountGrams: number, portionLabel: string) => {

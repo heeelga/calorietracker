@@ -59,6 +59,7 @@ function normalizeProduct(product: OFFProduct): FoodItem | null {
     image_url: product.image_front_small_url || product.image_url,
     barcode: product.code || product._id,
     package_weight_g: parseWeight(product.quantity),
+    source: 'openfoodfacts' as const,
   }
 }
 

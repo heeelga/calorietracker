@@ -1,12 +1,12 @@
 interface MacroRingProps {
   calories: number
-  calorieTarget: number
+  calorieTarget: number | null
   protein: number
-  proteinTarget: number
+  proteinTarget: number | null
   carbs: number
-  carbsTarget: number
+  carbsTarget: number | null
   fat: number
-  fatTarget: number
+  fatTarget: number | null
 }
 
 function CircleProgress({
@@ -61,10 +61,10 @@ function MacroBar({
 }: {
   label: string
   value: number
-  target: number
+  target: number | null
   color: string
 }) {
-  const pct = Math.min((value / target) * 100, 100)
+  const pct = Math.min((value / (target ?? 1)) * 100, 100)
   return (
     <div className="flex-1">
       <div className="flex justify-between text-xs mb-1">
@@ -91,8 +91,9 @@ export default function MacroRing({
   fat,
   fatTarget,
 }: MacroRingProps) {
-  const remaining = Math.max(calorieTarget - calories, 0)
-  const over = calories > calorieTarget
+  const target = calorieTarget ?? 2000
+  const remaining = Math.max(target - calories, 0)
+  const over = calories > target
 
   return (
     <div className="bg-slate-800 rounded-2xl p-4 shadow-lg">
@@ -101,7 +102,7 @@ export default function MacroRing({
         <div className="relative flex-shrink-0">
           <CircleProgress
             value={calories}
-            max={calorieTarget}
+            max={target}
             color={over ? '#ef4444' : '#22c55e'}
             size={130}
             strokeWidth={12}
@@ -119,7 +120,7 @@ export default function MacroRing({
         <div className="flex-1 flex flex-col gap-3">
           <div className="flex justify-between items-baseline">
             <span className="text-sm text-slate-400">Ziel</span>
-            <span className="text-sm font-semibold text-slate-200">{calorieTarget} kcal</span>
+            <span className="text-sm font-semibold text-slate-200">{target} kcal</span>
           </div>
           <MacroBar label="Eiweiß" value={protein} target={proteinTarget} color="#22c55e" />
           <MacroBar label="Kohlenhydrate" value={carbs} target={carbsTarget} color="#3b82f6" />

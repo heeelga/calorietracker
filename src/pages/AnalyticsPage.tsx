@@ -158,7 +158,7 @@ export default function AnalyticsPage() {
                 itemStyle={{ color: '#22c55e' }}
               />
               {profile && (
-                <ReferenceLine y={profile.calorie_target} stroke="#ef4444" strokeDasharray="4 2" strokeWidth={1.5} />
+                <ReferenceLine y={profile.calorie_target ?? 2000} stroke="#ef4444" strokeDasharray="4 2" strokeWidth={1.5} />
               )}
               <Bar dataKey="calories" fill="#22c55e" radius={[4, 4, 0, 0]} name="kcal" />
             </BarChart>

@@ -21,7 +21,7 @@ export default function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps)
       try {
         if (!videoRef.current) return
 
-        await reader.decodeFromVideoDevice(undefined, videoRef.current, (result, err) => {
+        await reader.decodeFromVideoDevice(null, videoRef.current, (result, err) => {
           if (result && scanning) {
             setScanning(false)
             onScan(result.getText())

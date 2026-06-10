@@ -77,9 +77,14 @@ export default function MealsPage() {
       meal_id: '',
       food_id: selectedFood.id,
       food_name: selectedFood.name,
-      food_brand: selectedFood.brand,
+      food_brand: selectedFood.brand ?? null,
       amount_grams: amountGrams,
       portion_label: portionLabel,
+      calories_per_100g: selectedFood.calories_per_100g,
+      protein_per_100g: selectedFood.protein_per_100g,
+      carbs_per_100g: selectedFood.carbs_per_100g,
+      fat_per_100g: selectedFood.fat_per_100g,
+      fiber_per_100g: selectedFood.fiber_per_100g,
       ...nutrition,
     }
     setPendingIngredients((prev) => [...prev, ingredient])
@@ -161,14 +166,15 @@ export default function MealsPage() {
 
     for (const ing of selectedMeal.ingredients) {
       const food: FoodItem = {
-        id: ing.food_id,
+        id: ing.food_id ?? ing.id,
         name: ing.food_name,
-        brand: ing.food_brand,
-        calories_per_100g: (ing.calories / ing.amount_grams) * 100,
-        protein_per_100g: (ing.protein_g / ing.amount_grams) * 100,
-        carbs_per_100g: (ing.carbs_g / ing.amount_grams) * 100,
-        fat_per_100g: (ing.fat_g / ing.amount_grams) * 100,
-        fiber_per_100g: (ing.fiber_g / ing.amount_grams) * 100,
+        brand: ing.food_brand ?? undefined,
+        calories_per_100g: ing.calories_per_100g,
+        protein_per_100g: ing.protein_per_100g,
+        carbs_per_100g: ing.carbs_per_100g,
+        fat_per_100g: ing.fat_per_100g,
+        fiber_per_100g: ing.fiber_per_100g,
+        source: 'manual' as const,
       }
       await addEntry(food, ing.amount_grams, ing.portion_label ?? `${ing.amount_grams}g`, logMealType)
     }

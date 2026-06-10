@@ -33,6 +33,7 @@ export function calculateTargets(profile: Profile): {
 } {
   const currentYear = new Date().getFullYear()
   const age = profile.birth_year ? currentYear - profile.birth_year : 30
+  // age used below
   const weight = profile.weight_kg ?? 70
   const height = profile.height_cm ?? 170
   const gender = profile.gender ?? 'other'
