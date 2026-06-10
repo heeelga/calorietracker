@@ -5,25 +5,73 @@ const { requireAuth } = require('../middleware/auth')
 
 const router = express.Router()
 
+// GET /api/meals/shareable-users — MUST be before /:id routes
+router.get('/shareable-users', requireAuth, async (req, res) => {
+  try {
+    const [users] = await pool.query(
+      'SELECT id, name, email FROM profiles WHERE id != ?',
+      [req.user.id]
+    )
+    res.json(users)
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Serverfehler' })
+  }
+})
+
 // GET /api/meals
 router.get('/', requireAuth, async (req, res) => {
   try {
-    const [meals] = await pool.query(
-      'SELECT * FROM meals WHERE user_id = ? ORDER BY created_at DESC',
+    // Own meals
+    const [ownMeals] = await pool.query(
+      'SELECT m.*, p.name AS owner_name FROM meals m JOIN profiles p ON p.id = m.user_id WHERE m.user_id = ? ORDER BY m.created_at DESC',
       [req.user.id]
     )
 
-    if (meals.length === 0) return res.json([])
+    // Shared meals (meals shared with the current user)
+    const [sharedMeals] = await pool.query(
+      `SELECT m.*, p.name AS owner_name FROM meals m
+       JOIN meal_shares ms ON ms.meal_id = m.id
+       JOIN profiles p ON p.id = m.user_id
+       WHERE ms.shared_with_id = ?
+       ORDER BY m.created_at DESC`,
+      [req.user.id]
+    )
 
-    const mealIds = meals.map(m => m.id)
+    const allMeals = [
+      ...ownMeals.map(m => ({ ...m, is_shared_with_me: false })),
+      ...sharedMeals.map(m => ({ ...m, is_shared_with_me: true })),
+    ]
+
+    if (allMeals.length === 0) return res.json([])
+
+    const mealIds = allMeals.map(m => m.id)
     const [ingredients] = await pool.query(
       `SELECT * FROM meal_ingredients WHERE meal_id IN (${mealIds.map(() => '?').join(',')})`,
       mealIds
     )
 
-    const result = meals.map(meal => ({
+    // Load shares for own meals
+    const ownMealIds = ownMeals.map(m => m.id)
+    let sharesMap = {}
+    if (ownMealIds.length > 0) {
+      const [shareRows] = await pool.query(
+        `SELECT ms.meal_id, p.id, p.name, p.email
+         FROM meal_shares ms
+         JOIN profiles p ON p.id = ms.shared_with_id
+         WHERE ms.meal_id IN (${ownMealIds.map(() => '?').join(',')})`,
+        ownMealIds
+      )
+      for (const row of shareRows) {
+        if (!sharesMap[row.meal_id]) sharesMap[row.meal_id] = []
+        sharesMap[row.meal_id].push({ id: row.id, name: row.name, email: row.email })
+      }
+    }
+
+    const result = allMeals.map(meal => ({
       ...meal,
       ingredients: ingredients.filter(i => i.meal_id === meal.id),
+      shares: sharesMap[meal.id] || [],
     }))
 
     res.json(result)
@@ -66,7 +114,59 @@ router.post('/', requireAuth, async (req, res) => {
     const [mealRows] = await pool.query('SELECT * FROM meals WHERE id = ?', [mealId])
     const [ingRows] = await pool.query('SELECT * FROM meal_ingredients WHERE meal_id = ?', [mealId])
 
-    res.status(201).json({ ...mealRows[0], ingredients: ingRows })
+    res.status(201).json({ ...mealRows[0], ingredients: ingRows, shares: [], is_shared_with_me: false })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Serverfehler' })
+  }
+})
+
+// POST /api/meals/:id/share
+router.post('/:id/share', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params
+    const { user_ids = [] } = req.body
+
+    // Only owner can share
+    const [mealRows] = await pool.query('SELECT * FROM meals WHERE id = ? AND user_id = ?', [id, req.user.id])
+    if (mealRows.length === 0) return res.status(403).json({ error: 'Kein Zugriff' })
+
+    for (const userId of user_ids) {
+      const shareId = uuidv4()
+      await pool.query(
+        'INSERT IGNORE INTO meal_shares (id, meal_id, owner_id, shared_with_id) VALUES (?, ?, ?, ?)',
+        [shareId, id, req.user.id, userId]
+      )
+    }
+
+    // Return updated share list
+    const [shareRows] = await pool.query(
+      `SELECT p.id, p.name, p.email FROM meal_shares ms
+       JOIN profiles p ON p.id = ms.shared_with_id
+       WHERE ms.meal_id = ?`,
+      [id]
+    )
+    res.json(shareRows)
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Serverfehler' })
+  }
+})
+
+// DELETE /api/meals/:id/share/:userId
+router.delete('/:id/share/:userId', requireAuth, async (req, res) => {
+  try {
+    const { id, userId } = req.params
+
+    // Only owner can unshare
+    const [mealRows] = await pool.query('SELECT * FROM meals WHERE id = ? AND user_id = ?', [id, req.user.id])
+    if (mealRows.length === 0) return res.status(403).json({ error: 'Kein Zugriff' })
+
+    await pool.query(
+      'DELETE FROM meal_shares WHERE meal_id = ? AND shared_with_id = ?',
+      [id, userId]
+    )
+    res.json({ success: true })
   } catch (err) {
     console.error(err)
     res.status(500).json({ error: 'Serverfehler' })
@@ -77,6 +177,7 @@ router.post('/', requireAuth, async (req, res) => {
 router.delete('/:id', requireAuth, async (req, res) => {
   try {
     await pool.query('DELETE FROM meal_ingredients WHERE meal_id = ?', [req.params.id])
+    await pool.query('DELETE FROM meal_shares WHERE meal_id = ?', [req.params.id])
     const [result] = await pool.query(
       'DELETE FROM meals WHERE id = ? AND user_id = ?',
       [req.params.id, req.user.id]

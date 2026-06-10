@@ -110,3 +110,14 @@ CREATE TABLE IF NOT EXISTS favorites (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_user (user_id)
 );
+
+CREATE TABLE IF NOT EXISTS meal_shares (
+  id VARCHAR(36) PRIMARY KEY,
+  meal_id VARCHAR(36) NOT NULL,
+  owner_id VARCHAR(36) NOT NULL,
+  shared_with_id VARCHAR(36) NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY unique_share (meal_id, shared_with_id),
+  INDEX idx_meal (meal_id),
+  INDEX idx_shared_with (shared_with_id)
+);

@@ -6,10 +6,10 @@ import Layout from '../components/Layout'
 import FoodSearch from '../components/FoodSearch'
 import PortionSelector from '../components/PortionSelector'
 import { api } from '../lib/api'
-import type { Meal, MealIngredient, MealType, FoodItem } from '../types'
+import type { Meal, MealIngredient, MealType, FoodItem, MealShare } from '../types'
 import { MEAL_TYPE_LABELS } from '../types'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, ChevronRight, Trash2, UtensilsCrossed, X } from 'lucide-react'
+import { Plus, ChevronRight, Trash2, UtensilsCrossed, X, Share2, User } from 'lucide-react'
 import { calculateNutrition } from '../lib/nutrition'
 
 const today = new Date().toISOString().split('T')[0]
@@ -34,6 +34,11 @@ export default function MealsPage() {
   const [logMealType, setLogMealType] = useState<MealType>('lunch')
   const [logSuccess, setLogSuccess] = useState(false)
 
+  // Share modal state
+  const [shareModalMeal, setShareModalMeal] = useState<Meal | null>(null)
+  const [selectedShareIds, setSelectedShareIds] = useState<string[]>([])
+  const [shareSaving, setShareSaving] = useState(false)
+
   const { data: meals = [], isLoading } = useQuery({
     queryKey: ['meals', user?.id],
     queryFn: async () => {
@@ -42,6 +47,48 @@ export default function MealsPage() {
     },
     enabled: !!user,
   })
+
+  const { data: shareableUsers = [] } = useQuery({
+    queryKey: ['shareable-users'],
+    queryFn: async () => {
+      if (!user) return []
+      return api.get('/meals/shareable-users') as Promise<MealShare[]>
+    },
+    enabled: !!shareModalMeal,
+  })
+
+  const openShareModal = (meal: Meal, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setShareModalMeal(meal)
+    setSelectedShareIds((meal.shares ?? []).map(s => s.id))
+  }
+
+  const closeShareModal = () => {
+    setShareModalMeal(null)
+    setSelectedShareIds([])
+  }
+
+  const handleSaveShares = async () => {
+    if (!shareModalMeal) return
+    setShareSaving(true)
+    try {
+      const previousIds = (shareModalMeal.shares ?? []).map(s => s.id)
+      const toAdd = selectedShareIds.filter(id => !previousIds.includes(id))
+      const toRemove = previousIds.filter(id => !selectedShareIds.includes(id))
+
+      if (toAdd.length > 0) {
+        await api.post(`/meals/${shareModalMeal.id}/share`, { user_ids: toAdd })
+      }
+      for (const userId of toRemove) {
+        await api.del(`/meals/${shareModalMeal.id}/share/${userId}`)
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['meals'] })
+      closeShareModal()
+    } finally {
+      setShareSaving(false)
+    }
+  }
 
   const handleAddIngredient = (food: FoodItem) => {
     setSelectedFood(food)
@@ -183,7 +230,28 @@ export default function MealsPage() {
                     <p className="text-xs text-slate-400">
                       {meal.ingredients?.length ?? 0} Zutaten • {Math.round(Number(meal.total_calories))} kcal
                     </p>
+                    {meal.is_shared_with_me && meal.owner_name && (
+                      <p className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
+                        <User size={10} />
+                        Von: {meal.owner_name}
+                      </p>
+                    )}
+                    {!meal.is_shared_with_me && (meal.shares ?? []).length > 0 && (
+                      <p className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
+                        <Share2 size={10} />
+                        Geteilt mit: {meal.shares!.map(s => s.name ?? s.email ?? '').join(', ')}
+                      </p>
+                    )}
                   </div>
+                  {!meal.is_shared_with_me && (
+                    <button
+                      onClick={(e) => openShareModal(meal, e)}
+                      className="p-2 text-slate-400 hover:text-green-400 hover:bg-green-500/10 rounded-lg transition-colors"
+                      title="Teilen"
+                    >
+                      <Share2 size={16} />
+                    </button>
+                  )}
                   <ChevronRight size={16} className="text-slate-500" />
                 </button>
               ))
@@ -283,12 +351,14 @@ export default function MealsPage() {
                 ← Zurück
               </button>
               <h3 className="font-semibold text-slate-100 flex-1">{selectedMeal.name}</h3>
-              <button
-                onClick={() => handleDeleteMeal(selectedMeal.id)}
-                className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg"
-              >
-                <Trash2 size={16} />
-              </button>
+              {!selectedMeal.is_shared_with_me && (
+                <button
+                  onClick={() => handleDeleteMeal(selectedMeal.id)}
+                  className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg"
+                >
+                  <Trash2 size={16} />
+                </button>
+              )}
             </div>
 
             {/* Nutrition summary */}
@@ -351,6 +421,56 @@ export default function MealsPage() {
           </>
         )}
       </div>
+
+      {/* Share Modal */}
+      {shareModalMeal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center p-4">
+          <div className="bg-slate-800 rounded-2xl w-full max-w-md p-5 flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-slate-100">Rezept teilen</h3>
+              <button onClick={closeShareModal} className="text-slate-400 hover:text-slate-100">
+                <X size={20} />
+              </button>
+            </div>
+            <p className="text-sm text-slate-400">„{shareModalMeal.name}" teilen mit:</p>
+
+            {shareableUsers.length === 0 ? (
+              <p className="text-sm text-slate-500 italic">Keine anderen Benutzer gefunden</p>
+            ) : (
+              <div className="flex flex-col gap-2 max-h-60 overflow-y-auto">
+                {shareableUsers.map((u) => (
+                  <label key={u.id} className="flex items-center gap-3 p-3 bg-slate-700 rounded-xl cursor-pointer hover:bg-slate-600 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={selectedShareIds.includes(u.id)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedShareIds(prev => [...prev, u.id])
+                        } else {
+                          setSelectedShareIds(prev => prev.filter(id => id !== u.id))
+                        }
+                      }}
+                      className="w-4 h-4 accent-green-500"
+                    />
+                    <div>
+                      <p className="text-sm font-medium text-slate-100">{u.name ?? u.email}</p>
+                      {u.name && <p className="text-xs text-slate-400">{u.email}</p>}
+                    </div>
+                  </label>
+                ))}
+              </div>
+            )}
+
+            <button
+              onClick={handleSaveShares}
+              disabled={shareSaving}
+              className="py-3 bg-green-500 text-white font-semibold rounded-xl hover:bg-green-600 transition-colors disabled:opacity-50"
+            >
+              {shareSaving ? 'Speichern...' : 'Speichern'}
+            </button>
+          </div>
+        </div>
+      )}
     </Layout>
   )
 }

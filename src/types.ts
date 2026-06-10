@@ -79,6 +79,12 @@ export interface MealIngredient {
   fiber_g: number
 }
 
+export interface MealShare {
+  id: string
+  name: string | null
+  email: string | null
+}
+
 export interface Meal {
   id: string
   user_id: string
@@ -89,6 +95,9 @@ export interface Meal {
   total_fat_g: number
   created_at: string
   ingredients?: MealIngredient[]
+  shares?: MealShare[]
+  is_shared_with_me?: boolean
+  owner_name?: string | null
 }
 
 export interface Badge {
