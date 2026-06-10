@@ -87,9 +87,12 @@ router.get('/mtls', async (req, res) => {
     if (!cnMatch) return res.status(401).json({ error: 'CN nicht gefunden' })
 
     const cn = cnMatch[1].trim()
+    // CN format is often "device-username" (e.g. "zeus-markus"), extract part after last hyphen
+    const namePart = cn.includes('-') ? cn.substring(cn.lastIndexOf('-') + 1) : cn
+
     const [rows] = await pool.query(
-      'SELECT * FROM profiles WHERE LOWER(name) = LOWER(?) OR LOWER(email) = LOWER(?)',
-      [cn, cn]
+      'SELECT * FROM profiles WHERE LOWER(name) = LOWER(?) OR LOWER(name) = LOWER(?) OR LOWER(email) = LOWER(?)',
+      [cn, namePart, cn]
     )
     if (rows.length === 0) return res.status(404).json({ error: 'Benutzer nicht gefunden' })
 
