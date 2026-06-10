@@ -14,6 +14,7 @@ import { db } from '../lib/db'
 import type { FoodItem, MealType, FavoriteFood } from '../types'
 import { useQuery } from '@tanstack/react-query'
 import { Camera, Heart, ChefHat, Loader2 } from 'lucide-react'
+import { useBadgeNotification } from '../contexts/BadgeNotificationContext'
 
 type Tab = 'search' | 'favorites' | 'custom'
 
@@ -29,6 +30,7 @@ export default function SearchPage() {
   const { addEntry } = useDailyLog(user?.id, dateParam)
   const { profile, updateProfile } = useProfile(user?.id)
   const { updateStreak, awardXP, checkAndAwardBadges, getEarnedBadges } = useRewards(user?.id)
+  const { showBadge } = useBadgeNotification()
 
   const [tab, setTab] = useState<Tab>('search')
   const [selectedFood, setSelectedFood] = useState<FoodItem | null>(null)
@@ -123,7 +125,10 @@ export default function SearchPage() {
         const count = await db.log_entries.where('user_id').equals(user.id).count()
 
         const earnedKeys = await getEarnedBadges()
-        await checkAndAwardBadges(updatedProfile, earnedKeys, count)
+        const newBadges = await checkAndAwardBadges(updatedProfile, earnedKeys, count)
+        for (const badge of newBadges) {
+          showBadge(badge)
+        }
         await updateProfile({ ...streakUpdates, ...xpUpdates })
       }
 

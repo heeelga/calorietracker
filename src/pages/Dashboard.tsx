@@ -108,6 +108,111 @@ export default function Dashboard() {
           />
         )}
 
+        {/* Macro Progress Bars */}
+        {profile && (
+          <div className="bg-slate-800 rounded-2xl p-4">
+            <h3 className="text-sm font-semibold text-slate-300 mb-4">Tagesübersicht</h3>
+            <div className="flex flex-col gap-4">
+              {/* Calories */}
+              {(() => {
+                const target = profile.calorie_target ?? 2000
+                const val = totals.calories
+                const pct = Math.min((val / target) * 100, 100)
+                const over = val > target
+                const color = over
+                  ? '#ef4444'
+                  : pct >= 90
+                  ? '#ef4444'
+                  : pct >= 70
+                  ? '#f97316'
+                  : '#22c55e'
+                return (
+                  <div>
+                    <div className="flex justify-between text-xs text-slate-400 mb-1.5">
+                      <span className="font-medium text-slate-200">Kalorien</span>
+                      <span>{Math.round(val)} / {target} kcal</span>
+                    </div>
+                    <div className="relative h-4 bg-slate-700 rounded-full overflow-visible">
+                      <div
+                        className={`h-full rounded-full transition-all ${over ? 'animate-pulse' : ''}`}
+                        style={{ width: `${pct}%`, backgroundColor: color }}
+                      />
+                      {val > 0 && (
+                        <span
+                          className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 text-sm leading-none ${pct > 1 && pct < 100 ? 'animate-bounce' : ''}`}
+                          style={{ left: `${Math.min(pct, 98)}%` }}
+                        >
+                          {over ? '💥' : '🔥'}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )
+              })()}
+              {/* Protein */}
+              {(() => {
+                const target = profile.protein_target_g ?? 150
+                const val = totals.protein_g
+                const pct = Math.min((val / target) * 100, 100)
+                return (
+                  <div>
+                    <div className="flex justify-between text-xs text-slate-400 mb-1.5">
+                      <span className="font-medium text-slate-200">Eiweiß</span>
+                      <span>{Math.round(val)}g / {target}g</span>
+                    </div>
+                    <div className="h-3 bg-slate-700 rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{ width: `${pct}%`, backgroundColor: '#3b82f6' }}
+                      />
+                    </div>
+                  </div>
+                )
+              })()}
+              {/* Carbs */}
+              {(() => {
+                const target = profile.carbs_target_g ?? 250
+                const val = totals.carbs_g
+                const pct = Math.min((val / target) * 100, 100)
+                return (
+                  <div>
+                    <div className="flex justify-between text-xs text-slate-400 mb-1.5">
+                      <span className="font-medium text-slate-200">Kohlenhydrate</span>
+                      <span>{Math.round(val)}g / {target}g</span>
+                    </div>
+                    <div className="h-3 bg-slate-700 rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{ width: `${pct}%`, backgroundColor: '#f59e0b' }}
+                      />
+                    </div>
+                  </div>
+                )
+              })()}
+              {/* Fat */}
+              {(() => {
+                const target = profile.fat_target_g ?? 65
+                const val = totals.fat_g
+                const pct = Math.min((val / target) * 100, 100)
+                return (
+                  <div>
+                    <div className="flex justify-between text-xs text-slate-400 mb-1.5">
+                      <span className="font-medium text-slate-200">Fett</span>
+                      <span>{Math.round(val)}g / {target}g</span>
+                    </div>
+                    <div className="h-3 bg-slate-700 rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{ width: `${pct}%`, backgroundColor: '#a855f7' }}
+                      />
+                    </div>
+                  </div>
+                )
+              })()}
+            </div>
+          </div>
+        )}
+
         {/* XP bar */}
         {profile && (
           <div className="bg-slate-800 rounded-2xl px-4 py-3">
