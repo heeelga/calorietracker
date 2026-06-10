@@ -1,4 +1,3 @@
-import { generateId } from '../lib/uuid'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
@@ -6,7 +5,7 @@ import { useDailyLog } from '../hooks/useDailyLog'
 import Layout from '../components/Layout'
 import FoodSearch from '../components/FoodSearch'
 import PortionSelector from '../components/PortionSelector'
-import { db } from '../lib/db'
+import { api } from '../lib/api'
 import type { Meal, MealIngredient, MealType, FoodItem } from '../types'
 import { MEAL_TYPE_LABELS } from '../types'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -39,17 +38,7 @@ export default function MealsPage() {
     queryKey: ['meals', user?.id],
     queryFn: async () => {
       if (!user) return []
-      const mealData = await db.meals
-        .where('user_id').equals(user.id)
-        .reverse()
-        .sortBy('created_at')
-
-      const mealsWithIngredients: Meal[] = []
-      for (const meal of mealData) {
-        const ingredients = await db.meal_ingredients.where('meal_id').equals(meal.id).toArray()
-        mealsWithIngredients.push({ ...meal, ingredients })
-      }
-      return mealsWithIngredients
+      return api.get('/meals') as Promise<Meal[]>
     },
     enabled: !!user,
   })
@@ -107,27 +96,14 @@ export default function MealsPage() {
     if (!user || !newMealName.trim() || pendingIngredients.length === 0) return
     setSaving(true)
     try {
-      const mealId = generateId()
-      const now = new Date().toISOString()
-      const newMeal: Meal = {
-        id: mealId,
-        user_id: user.id,
+      await api.post('/meals', {
         name: newMealName.trim(),
         total_calories: totalNutrition.calories,
         total_protein_g: totalNutrition.protein_g,
         total_carbs_g: totalNutrition.carbs_g,
         total_fat_g: totalNutrition.fat_g,
-        created_at: now,
-      }
-      await db.meals.add(newMeal)
-
-      await db.meal_ingredients.bulkAdd(
-        pendingIngredients.map((i) => ({
-          ...i,
-          id: generateId(),
-          meal_id: mealId,
-        }))
-      )
+        ingredients: pendingIngredients,
+      })
 
       queryClient.invalidateQueries({ queryKey: ['meals'] })
       setNewMealName('')
@@ -140,8 +116,7 @@ export default function MealsPage() {
   }
 
   const handleDeleteMeal = async (mealId: string) => {
-    await db.meal_ingredients.where('meal_id').equals(mealId).delete()
-    await db.meals.delete(mealId)
+    await api.del(`/meals/${mealId}`)
     queryClient.invalidateQueries({ queryKey: ['meals'] })
     setView('list')
     setSelectedMeal(null)
@@ -206,7 +181,7 @@ export default function MealsPage() {
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-slate-100">{meal.name}</p>
                     <p className="text-xs text-slate-400">
-                      {meal.ingredients?.length ?? 0} Zutaten • {Math.round(meal.total_calories)} kcal
+                      {meal.ingredients?.length ?? 0} Zutaten • {Math.round(Number(meal.total_calories))} kcal
                     </p>
                   </div>
                   <ChevronRight size={16} className="text-slate-500" />
@@ -319,19 +294,19 @@ export default function MealsPage() {
             {/* Nutrition summary */}
             <div className="bg-slate-800 rounded-2xl p-4 grid grid-cols-4 gap-2 text-center">
               <div>
-                <p className="text-lg font-bold text-green-400">{Math.round(selectedMeal.total_calories)}</p>
+                <p className="text-lg font-bold text-green-400">{Math.round(Number(selectedMeal.total_calories))}</p>
                 <p className="text-[10px] text-slate-400">kcal</p>
               </div>
               <div>
-                <p className="text-lg font-bold text-slate-100">{selectedMeal.total_protein_g.toFixed(0)}</p>
+                <p className="text-lg font-bold text-slate-100">{Number(selectedMeal.total_protein_g).toFixed(0)}</p>
                 <p className="text-[10px] text-slate-400">Eiweiß g</p>
               </div>
               <div>
-                <p className="text-lg font-bold text-slate-100">{selectedMeal.total_carbs_g.toFixed(0)}</p>
+                <p className="text-lg font-bold text-slate-100">{Number(selectedMeal.total_carbs_g).toFixed(0)}</p>
                 <p className="text-[10px] text-slate-400">Kohlenhydr. g</p>
               </div>
               <div>
-                <p className="text-lg font-bold text-slate-100">{selectedMeal.total_fat_g.toFixed(0)}</p>
+                <p className="text-lg font-bold text-slate-100">{Number(selectedMeal.total_fat_g).toFixed(0)}</p>
                 <p className="text-[10px] text-slate-400">Fett g</p>
               </div>
             </div>
@@ -345,7 +320,7 @@ export default function MealsPage() {
                     <p className="text-sm text-slate-100">{ing.food_name}</p>
                     <p className="text-xs text-slate-400">{ing.portion_label ?? `${ing.amount_grams}g`}</p>
                   </div>
-                  <p className="text-sm text-green-400">{Math.round(ing.calories)} kcal</p>
+                  <p className="text-sm text-green-400">{Math.round(Number(ing.calories))} kcal</p>
                 </div>
               ))}
             </div>

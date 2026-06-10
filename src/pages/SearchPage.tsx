@@ -1,4 +1,3 @@
-import { generateId } from '../lib/uuid'
 import React, { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
@@ -10,7 +9,7 @@ import BarcodeScanner from '../components/BarcodeScanner'
 import PortionSelector from '../components/PortionSelector'
 import Layout from '../components/Layout'
 import { getFoodByBarcode } from '../lib/openfoodfacts'
-import { db } from '../lib/db'
+import { api } from '../lib/api'
 import type { FoodItem, MealType, FavoriteFood } from '../types'
 import { useQuery } from '@tanstack/react-query'
 import { Camera, Heart, ChefHat, Loader2 } from 'lucide-react'
@@ -42,12 +41,11 @@ export default function SearchPage() {
     queryKey: ['favorites', user?.id],
     queryFn: async () => {
       if (!user) return []
-      return db.favorites.where('user_id').equals(user.id).toArray()
+      return api.get('/favorites') as Promise<FavoriteFood[]>
     },
     enabled: !!user,
   })
 
-  // custom_foods is not in Dexie schema; show empty list
   const customFoods: FoodItem[] = []
 
   const handleScan = async (barcode: string) => {
@@ -97,9 +95,7 @@ export default function SearchPage() {
       // Save to favorites if not already there
       const alreadyFav = favorites.some((f) => f.food_id === selectedFood.id)
       if (!alreadyFav) {
-        await db.favorites.add({
-          id: generateId(),
-          user_id: user.id,
+        await api.post('/favorites', {
           food_id: selectedFood.id,
           food_name: selectedFood.name,
           food_brand: selectedFood.brand ?? null,
@@ -111,7 +107,6 @@ export default function SearchPage() {
           barcode: selectedFood.barcode ?? null,
           package_weight_g: selectedFood.package_weight_g ?? null,
           image_url: selectedFood.image_url ?? null,
-          created_at: new Date().toISOString(),
         })
         refetchFavorites()
       }
@@ -122,7 +117,8 @@ export default function SearchPage() {
         const xpUpdates = await awardXP({ ...profile, ...streakUpdates })
         const updatedProfile = { ...profile, ...streakUpdates, ...xpUpdates }
 
-        const count = await db.log_entries.where('user_id').equals(user.id).count()
+        const countData = await api.get('/log/count')
+        const count = countData.count
 
         const earnedKeys = await getEarnedBadges()
         const newBadges = await checkAndAwardBadges(updatedProfile, earnedKeys, count)

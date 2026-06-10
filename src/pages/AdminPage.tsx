@@ -2,17 +2,23 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useProfile } from '../hooks/useProfile'
-import { db } from '../lib/db'
-import { sha256 } from 'js-sha256'
-import { generateId } from '../lib/uuid'
+import { api } from '../lib/api'
 import Layout from '../components/Layout'
 import type { Profile } from '../types'
 import { Shield, ShieldOff, Key, UserPlus, ShieldCheck, ArrowLeft } from 'lucide-react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 
 export default function AdminPage() {
-  const { user, allUsers, refetchUsers, signUp } = useAuth()
+  const { user } = useAuth()
   const { profile } = useProfile(user?.id)
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
+
+  const { data: allUsers = [], refetch: refetchUsers } = useQuery({
+    queryKey: ['admin_users'],
+    queryFn: () => api.get('/admin/users') as Promise<Profile[]>,
+    enabled: !!profile?.is_admin,
+  })
 
   const [resetPasswordUserId, setResetPasswordUserId] = useState<string | null>(null)
   const [newPassword, setNewPassword] = useState('')
@@ -50,8 +56,8 @@ export default function AdminPage() {
     if (targetUser.id === user?.id) return
     setActionLoading(targetUser.id + '_ban')
     try {
-      await db.profiles.update(targetUser.id, { is_banned: !targetUser.is_banned })
-      await refetchUsers()
+      await api.put(`/admin/users/${targetUser.id}/ban`, {})
+      refetchUsers()
     } finally {
       setActionLoading(null)
     }
@@ -61,8 +67,8 @@ export default function AdminPage() {
     if (targetUser.id === user?.id) return
     setActionLoading(targetUser.id + '_admin')
     try {
-      await db.profiles.update(targetUser.id, { is_admin: !targetUser.is_admin })
-      await refetchUsers()
+      await api.put(`/admin/users/${targetUser.id}/admin`, {})
+      refetchUsers()
     } finally {
       setActionLoading(null)
     }
@@ -77,15 +83,15 @@ export default function AdminPage() {
     }
     setActionLoading(targetUserId + '_pw')
     try {
-      await db.profiles.update(targetUserId, { password_hash: sha256(newPassword) })
+      await api.put(`/admin/users/${targetUserId}/password`, { password: newPassword })
       setResetSuccess('Passwort wurde zurückgesetzt')
       setNewPassword('')
       setTimeout(() => {
         setResetPasswordUserId(null)
         setResetSuccess(null)
       }, 2000)
-    } catch {
-      setResetError('Fehler beim Zurücksetzen')
+    } catch (err) {
+      setResetError(err instanceof Error ? err.message : 'Fehler beim Zurücksetzen')
     } finally {
       setActionLoading(null)
     }
@@ -112,36 +118,13 @@ export default function AdminPage() {
 
     setCreating(true)
     try {
-      // Create user directly without navigating
-      const now = new Date().toISOString()
-      const hash = sha256(createPassword)
-      const newProfile: Profile = {
-        id: generateId(),
+      await api.post('/admin/users', {
         name: createName.trim(),
         email: createEmail.trim(),
-        height_cm: null,
-        weight_kg: null,
-        birth_year: null,
-        gender: null,
-        activity_level: null,
-        goal: null,
-        target_weight_kg: null,
-        calorie_target: null,
-        protein_target_g: null,
-        carbs_target_g: null,
-        fat_target_g: null,
-        xp: 0,
-        level: 1,
-        streak_days: 0,
-        last_log_date: null,
-        onboarding_done: false,
-        password_hash: hash,
+        password: createPassword,
         is_admin: false,
-        is_banned: false,
-        created_at: now,
-      }
-      await db.profiles.add(newProfile)
-      await refetchUsers()
+      })
+      queryClient.invalidateQueries({ queryKey: ['admin_users'] })
       setCreateSuccess(`Benutzer "${createName.trim()}" wurde erstellt`)
       setCreateName('')
       setCreateEmail('')

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { db } from '../lib/db'
+import { api } from '../lib/api'
 import type { Profile } from '../types'
 
 export function useProfile(userId: string | undefined) {
@@ -15,8 +15,8 @@ export function useProfile(userId: string | undefined) {
 
     try {
       setLoading(true)
-      const data = await db.profiles.get(userId)
-      setProfile(data ?? null)
+      const data = await api.get('/profile')
+      setProfile(data)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Fehler beim Laden des Profils')
     } finally {
@@ -32,9 +32,8 @@ export function useProfile(userId: string | undefined) {
     if (!userId) return
 
     try {
-      await db.profiles.update(userId, updates)
-      const updated = await db.profiles.get(userId)
-      setProfile(updated ?? null)
+      const updated = await api.put('/profile', updates)
+      setProfile(updated)
       return updated
     } catch (err) {
       throw new Error(err instanceof Error ? err.message : 'Fehler beim Speichern')

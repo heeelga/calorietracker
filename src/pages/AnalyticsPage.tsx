@@ -4,11 +4,11 @@ import { useProfile } from '../hooks/useProfile'
 import { useRewards } from '../hooks/useRewards'
 import Layout from '../components/Layout'
 import BadgeDisplay from '../components/BadgeDisplay'
-import { db } from '../lib/db'
+import { api } from '../lib/api'
 import { useQuery } from '@tanstack/react-query'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, LineChart, Line, ReferenceLine, Legend,
+  PieChart, Pie, Cell, LineChart, Line, ReferenceLine,
 } from 'recharts'
 import type { LogEntry, WeightEntry } from '../types'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
@@ -43,11 +43,7 @@ export default function AnalyticsPage() {
     queryKey: ['week_entries', user?.id, weekDates[0]],
     queryFn: async () => {
       if (!user) return []
-      const data = await db.log_entries
-        .where('user_id').equals(user.id)
-        .filter((e) => e.log_date >= weekDates[0] && e.log_date <= weekDates[6])
-        .toArray()
-      return data as LogEntry[]
+      return api.get(`/log/week?start=${weekDates[0]}&end=${weekDates[6]}`) as Promise<LogEntry[]>
     },
     enabled: !!user,
   })
@@ -56,10 +52,7 @@ export default function AnalyticsPage() {
     queryKey: ['weight_history', user?.id],
     queryFn: async () => {
       if (!user) return []
-      const data = await db.weight_log
-        .where('user_id').equals(user.id)
-        .sortBy('log_date')
-      return data.slice(-30) as WeightEntry[]
+      return api.get('/weight') as Promise<WeightEntry[]>
     },
     enabled: !!user,
   })
@@ -74,7 +67,8 @@ export default function AnalyticsPage() {
     queryKey: ['log_count', user?.id],
     queryFn: async () => {
       if (!user) return 0
-      return db.log_entries.where('user_id').equals(user.id).count()
+      const data = await api.get('/log/count')
+      return data.count as number
     },
     enabled: !!user,
   })
@@ -82,14 +76,14 @@ export default function AnalyticsPage() {
   // Build bar chart data
   const barData = weekDates.map((date, i) => {
     const dayEntries = weekEntries.filter((e) => e.log_date === date)
-    const cal = dayEntries.reduce((s, e) => s + e.calories, 0)
+    const cal = dayEntries.reduce((s, e) => s + Number(e.calories), 0)
     return { day: DAY_LABELS[i], calories: Math.round(cal), date }
   })
 
   // Macro pie chart
-  const totalProtein = weekEntries.reduce((s, e) => s + e.protein_g, 0)
-  const totalCarbs = weekEntries.reduce((s, e) => s + e.carbs_g, 0)
-  const totalFat = weekEntries.reduce((s, e) => s + e.fat_g, 0)
+  const totalProtein = weekEntries.reduce((s, e) => s + Number(e.protein_g), 0)
+  const totalCarbs = weekEntries.reduce((s, e) => s + Number(e.carbs_g), 0)
+  const totalFat = weekEntries.reduce((s, e) => s + Number(e.fat_g), 0)
 
   const pieData = [
     { name: 'Eiweiß', value: Math.round(totalProtein) },

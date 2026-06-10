@@ -1,6 +1,5 @@
-import { generateId } from '../lib/uuid'
 import { useState, useEffect, useCallback } from 'react'
-import { db } from '../lib/db'
+import { api } from '../lib/api'
 import type { LogEntry, MealType } from '../types'
 import { calculateNutrition } from '../lib/nutrition'
 import type { FoodItem } from '../types'
@@ -18,12 +17,7 @@ export function useDailyLog(userId: string | undefined, date: string) {
 
     try {
       setLoading(true)
-      const data = await db.log_entries
-        .where({ user_id: userId })
-        .filter((e) => e.log_date === date)
-        .toArray()
-
-      data.sort((a, b) => a.created_at.localeCompare(b.created_at))
+      const data = await api.get(`/log?date=${date}`)
       setEntries(data)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Fehler beim Laden')
@@ -53,9 +47,7 @@ export function useDailyLog(userId: string | undefined, date: string) {
       amountGrams
     )
 
-    const entry: LogEntry = {
-      id: generateId(),
-      user_id: userId,
+    const entry = await api.post('/log', {
       log_date: date,
       meal_type: mealType,
       food_id: food.id,
@@ -63,27 +55,25 @@ export function useDailyLog(userId: string | undefined, date: string) {
       food_brand: food.brand ?? null,
       amount_grams: amountGrams,
       portion_label: portionLabel,
-      created_at: new Date().toISOString(),
       ...nutrition,
-    }
+    })
 
-    await db.log_entries.add(entry)
     setEntries((prev) => [...prev, entry])
     return entry
   }
 
   const deleteEntry = async (entryId: string) => {
-    await db.log_entries.delete(entryId)
+    await api.del(`/log/${entryId}`)
     setEntries((prev) => prev.filter((e) => e.id !== entryId))
   }
 
   const totals = entries.reduce(
     (acc, entry) => ({
-      calories: acc.calories + entry.calories,
-      protein_g: acc.protein_g + entry.protein_g,
-      carbs_g: acc.carbs_g + entry.carbs_g,
-      fat_g: acc.fat_g + entry.fat_g,
-      fiber_g: acc.fiber_g + entry.fiber_g,
+      calories: acc.calories + Number(entry.calories),
+      protein_g: acc.protein_g + Number(entry.protein_g),
+      carbs_g: acc.carbs_g + Number(entry.carbs_g),
+      fat_g: acc.fat_g + Number(entry.fat_g),
+      fiber_g: acc.fiber_g + Number(entry.fiber_g),
     }),
     { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0, fiber_g: 0 }
   )

@@ -1,4 +1,3 @@
-import { generateId } from '../lib/uuid'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
@@ -6,7 +5,7 @@ import { useProfile } from '../hooks/useProfile'
 import { useDailyLog } from '../hooks/useDailyLog'
 import MacroRing from '../components/MacroRing'
 import Layout from '../components/Layout'
-import { db } from '../lib/db'
+import { api } from '../lib/api'
 import { Flame, Star, Plus, Scale } from 'lucide-react'
 import type { MealType } from '../types'
 import { MEAL_TYPE_LABELS } from '../types'
@@ -48,18 +47,7 @@ export default function Dashboard() {
     const kg = parseFloat(weightInput)
     if (isNaN(kg)) return
 
-    // Upsert: delete existing entry for same user+date then add
-    await db.weight_log
-      .where({ user_id: user.id })
-      .filter((w) => w.log_date === today)
-      .delete()
-    await db.weight_log.add({
-      id: generateId(),
-      user_id: user.id,
-      log_date: today,
-      weight_kg: kg,
-      created_at: new Date().toISOString(),
-    })
+    await api.post('/weight', { log_date: today, weight_kg: kg })
     setWeightSaved(true)
     setTimeout(() => setWeightSaved(false), 2000)
     setWeightInput('')

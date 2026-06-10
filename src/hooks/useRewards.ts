@@ -1,6 +1,5 @@
-import { generateId } from '../lib/uuid'
 import { useCallback } from 'react'
-import { db } from '../lib/db'
+import { api } from '../lib/api'
 import type { Profile } from '../types'
 
 export interface BadgeDefinition {
@@ -47,7 +46,7 @@ export function useRewards(userId: string | undefined) {
       return {}
     } else if (lastLogDate === yesterday) {
       newStreak += 1
-    } else if (lastLogDate !== today) {
+    } else {
       newStreak = 1
     }
 
@@ -56,7 +55,7 @@ export function useRewards(userId: string | undefined) {
       last_log_date: today,
     }
 
-    await db.profiles.update(userId, updates)
+    await api.put('/profile', updates)
     return updates
   }, [userId])
 
@@ -71,7 +70,7 @@ export function useRewards(userId: string | undefined) {
       level: newLevel,
     }
 
-    await db.profiles.update(userId, updates)
+    await api.put('/profile', updates)
     return updates
   }, [userId])
 
@@ -102,12 +101,7 @@ export function useRewards(userId: string | undefined) {
     checkBadge('foods_100', totalLogCount >= 100)
 
     for (const key of newBadgeKeys) {
-      await db.badges.add({
-        id: generateId(),
-        user_id: userId,
-        badge_key: key,
-        earned_at: new Date().toISOString(),
-      })
+      await api.post('/badges', { badge_key: key })
     }
 
     return newBadgeKeys
@@ -117,9 +111,7 @@ export function useRewards(userId: string | undefined) {
 
   const getEarnedBadges = useCallback(async (): Promise<string[]> => {
     if (!userId) return []
-
-    const badges = await db.badges.where({ user_id: userId }).toArray()
-    return badges.map((b) => b.badge_key)
+    return api.get('/badges')
   }, [userId])
 
   return { updateStreak, awardXP, checkAndAwardBadges, getEarnedBadges, BADGE_DEFINITIONS }

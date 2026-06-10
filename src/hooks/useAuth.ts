@@ -1,38 +1,26 @@
-import { sha256 } from 'js-sha256'
-import { generateId } from '../lib/uuid'
 import { useState, useEffect, useCallback } from 'react'
-import { db } from '../lib/db'
+import { api, setToken, clearToken, getToken } from '../lib/api'
 import type { Profile } from '../types'
-
-const CURRENT_USER_KEY = 'currentUserId'
 
 export function useAuth() {
   const [user, setUser] = useState<Profile | null>(null)
-  const [allUsers, setAllUsers] = useState<Profile[]>([])
   const [loading, setLoading] = useState(true)
-
-  const loadUsers = useCallback(async () => {
-    const profiles = await db.profiles.toArray()
-    setAllUsers(profiles)
-    return profiles
-  }, [])
+  const [signInError, setSignInError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
 
     const init = async () => {
+      const token = getToken()
+      if (!token) {
+        if (!cancelled) setLoading(false)
+        return
+      }
       try {
-        const profiles = await db.profiles.toArray()
-        if (cancelled) return
-        setAllUsers(profiles)
-
-        const storedId = localStorage.getItem(CURRENT_USER_KEY)
-        if (storedId) {
-          const profile = await db.profiles.get(storedId)
-          if (!cancelled) setUser(profile ?? null)
-        }
-        // Note: we no longer auto-login even for single-profile cases
-        // because we now require password authentication
+        const profile = await api.get('/profile')
+        if (!cancelled) setUser(profile)
+      } catch {
+        clearToken()
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -42,79 +30,31 @@ export function useAuth() {
     return () => { cancelled = true }
   }, [])
 
-  const [signInError, setSignInError] = useState<string | null>(null)
-
-  const signIn = useCallback(async (userId: string, password: string): Promise<boolean> => {
+  const signIn = useCallback(async (email: string, password: string): Promise<boolean> => {
     setSignInError(null)
-    const profile = await db.profiles.get(userId)
-    if (!profile) throw new Error('Benutzer nicht gefunden')
-
-    if (profile.is_banned) {
-      setSignInError('Konto gesperrt. Bitte kontaktiere den Administrator.')
-      return false
-    }
-
-    const hash = sha256(password)
-
-    if (profile.password_hash === null) {
-      // Legacy profile without password — allow login and set password
-      await db.profiles.update(userId, { password_hash: hash })
-      const updated = await db.profiles.get(userId)
-      localStorage.setItem(CURRENT_USER_KEY, userId)
-      setUser(updated ?? profile)
+    try {
+      const { token, profile } = await api.post('/auth/login', { email, password })
+      setToken(token)
+      setUser(profile)
       return true
-    }
-
-    if (hash !== profile.password_hash) {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Fehler beim Anmelden'
+      setSignInError(msg)
       return false
     }
-
-    localStorage.setItem(CURRENT_USER_KEY, userId)
-    setUser(profile)
-    return true
   }, [])
 
   const signUp = useCallback(async (name: string, email: string, password: string): Promise<Profile> => {
-    const now = new Date().toISOString()
-    const hash = sha256(password)
-    const count = await db.profiles.count()
-    const newProfile: Profile = {
-      id: generateId(),
-      name,
-      email,
-      height_cm: null,
-      weight_kg: null,
-      birth_year: null,
-      gender: null,
-      activity_level: null,
-      goal: null,
-      target_weight_kg: null,
-      calorie_target: null,
-      protein_target_g: null,
-      carbs_target_g: null,
-      fat_target_g: null,
-      xp: 0,
-      level: 1,
-      streak_days: 0,
-      last_log_date: null,
-      onboarding_done: false,
-      password_hash: hash,
-      is_admin: count === 0,
-      is_banned: false,
-      created_at: now,
-    }
-    await db.profiles.add(newProfile)
-    localStorage.setItem(CURRENT_USER_KEY, newProfile.id)
-    const updated = await db.profiles.toArray()
-    setAllUsers(updated)
-    setUser(newProfile)
-    return newProfile
+    const { token, profile } = await api.post('/auth/register', { name, email, password })
+    setToken(token)
+    setUser(profile)
+    return profile
   }, [])
 
   const signOut = useCallback(() => {
-    localStorage.removeItem(CURRENT_USER_KEY)
+    clearToken()
     setUser(null)
   }, [])
 
-  return { user, loading, signIn, signUp, signOut, allUsers, refetchUsers: loadUsers, signInError }
+  return { user, loading, signIn, signUp, signOut, signInError }
 }
