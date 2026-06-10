@@ -1,3 +1,4 @@
+import { generateId } from '../lib/uuid'
 import { useCallback } from 'react'
 import { db } from '../lib/db'
 import type { Profile } from '../types'
@@ -102,7 +103,7 @@ export function useRewards(userId: string | undefined) {
 
     for (const key of newBadges) {
       await db.badges.add({
-        id: crypto.randomUUID(),
+        id: generateId(),
         user_id: userId,
         badge_key: key,
         earned_at: new Date().toISOString(),

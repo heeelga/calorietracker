@@ -1,3 +1,4 @@
+import { generateId } from '../lib/uuid'
 import React, { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
@@ -95,7 +96,7 @@ export default function SearchPage() {
       const alreadyFav = favorites.some((f) => f.food_id === selectedFood.id)
       if (!alreadyFav) {
         await db.favorites.add({
-          id: crypto.randomUUID(),
+          id: generateId(),
           user_id: user.id,
           food_id: selectedFood.id,
           food_name: selectedFood.name,

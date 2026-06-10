@@ -1,3 +1,4 @@
+import { generateId } from '../lib/uuid'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
@@ -53,7 +54,7 @@ export default function Dashboard() {
       .filter((w) => w.log_date === today)
       .delete()
     await db.weight_log.add({
-      id: crypto.randomUUID(),
+      id: generateId(),
       user_id: user.id,
       log_date: today,
       weight_kg: kg,

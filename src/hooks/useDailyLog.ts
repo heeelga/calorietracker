@@ -1,3 +1,4 @@
+import { generateId } from '../lib/uuid'
 import { useState, useEffect, useCallback } from 'react'
 import { db } from '../lib/db'
 import type { LogEntry, MealType } from '../types'
@@ -53,7 +54,7 @@ export function useDailyLog(userId: string | undefined, date: string) {
     )
 
     const entry: LogEntry = {
-      id: crypto.randomUUID(),
+      id: generateId(),
       user_id: userId,
       log_date: date,
       meal_type: mealType,

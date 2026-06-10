@@ -1,3 +1,4 @@
+import { generateId } from '../lib/uuid'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
@@ -106,7 +107,7 @@ export default function MealsPage() {
     if (!user || !newMealName.trim() || pendingIngredients.length === 0) return
     setSaving(true)
     try {
-      const mealId = crypto.randomUUID()
+      const mealId = generateId()
       const now = new Date().toISOString()
       const newMeal: Meal = {
         id: mealId,
@@ -123,7 +124,7 @@ export default function MealsPage() {
       await db.meal_ingredients.bulkAdd(
         pendingIngredients.map((i) => ({
           ...i,
-          id: crypto.randomUUID(),
+          id: generateId(),
           meal_id: mealId,
         }))
       )

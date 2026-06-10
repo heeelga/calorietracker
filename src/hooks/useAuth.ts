@@ -1,3 +1,4 @@
+import { generateId } from '../lib/uuid'
 import { useState, useEffect, useCallback } from 'react'
 import { db } from '../lib/db'
 import type { Profile } from '../types'
@@ -52,7 +53,7 @@ export function useAuth() {
   const signUp = useCallback(async (name: string) => {
     const now = new Date().toISOString()
     const newProfile: Profile = {
-      id: crypto.randomUUID(),
+      id: generateId(),
       name,
       height_cm: null,
       weight_kg: null,
