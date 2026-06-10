@@ -115,7 +115,7 @@ export default function ProfilePage() {
           </div>
           <div className="flex-1 min-w-0">
             <h2 className="text-xl font-bold text-slate-100 truncate">{profile?.name ?? 'Benutzer'}</h2>
-            <p className="text-sm text-slate-400 truncate">{user?.email}</p>
+            <p className="text-sm text-slate-400 truncate">{user?.name ?? ''}</p>
             <div className="flex items-center gap-3 mt-2">
               <div className="flex items-center gap-1">
                 <Star size={14} className="text-yellow-400" />

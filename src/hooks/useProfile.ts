@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase } from '../lib/supabase'
+import { db } from '../lib/db'
 import type { Profile } from '../types'
 
 export function useProfile(userId: string | undefined) {
@@ -15,14 +15,8 @@ export function useProfile(userId: string | undefined) {
 
     try {
       setLoading(true)
-      const { data, error: err } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single()
-
-      if (err) throw err
-      setProfile(data)
+      const data = await db.profiles.get(userId)
+      setProfile(data ?? null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Fehler beim Laden des Profils')
     } finally {
@@ -38,16 +32,10 @@ export function useProfile(userId: string | undefined) {
     if (!userId) return
 
     try {
-      const { data, error: err } = await supabase
-        .from('profiles')
-        .update(updates)
-        .eq('id', userId)
-        .select()
-        .single()
-
-      if (err) throw err
-      setProfile(data)
-      return data
+      await db.profiles.update(userId, updates)
+      const updated = await db.profiles.get(userId)
+      setProfile(updated ?? null)
+      return updated
     } catch (err) {
       throw new Error(err instanceof Error ? err.message : 'Fehler beim Speichern')
     }

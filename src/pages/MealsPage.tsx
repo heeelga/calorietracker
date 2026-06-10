@@ -5,7 +5,7 @@ import { useDailyLog } from '../hooks/useDailyLog'
 import Layout from '../components/Layout'
 import FoodSearch from '../components/FoodSearch'
 import PortionSelector from '../components/PortionSelector'
-import { supabase } from '../lib/supabase'
+import { db } from '../lib/db'
 import type { Meal, MealIngredient, MealType, FoodItem } from '../types'
 import { MEAL_TYPE_LABELS } from '../types'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -38,19 +38,15 @@ export default function MealsPage() {
     queryKey: ['meals', user?.id],
     queryFn: async () => {
       if (!user) return []
-      const { data: mealData } = await supabase
-        .from('meals')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
+      const mealData = await db.meals
+        .where('user_id').equals(user.id)
+        .reverse()
+        .sortBy('created_at')
 
       const mealsWithIngredients: Meal[] = []
-      for (const meal of mealData ?? []) {
-        const { data: ingredients } = await supabase
-          .from('meal_ingredients')
-          .select('*')
-          .eq('meal_id', meal.id)
-        mealsWithIngredients.push({ ...meal, ingredients: ingredients ?? [] })
+      for (const meal of mealData) {
+        const ingredients = await db.meal_ingredients.where('meal_id').equals(meal.id).toArray()
+        mealsWithIngredients.push({ ...meal, ingredients })
       }
       return mealsWithIngredients
     },
@@ -110,37 +106,25 @@ export default function MealsPage() {
     if (!user || !newMealName.trim() || pendingIngredients.length === 0) return
     setSaving(true)
     try {
-      const { data: mealData, error } = await supabase
-        .from('meals')
-        .insert({
-          user_id: user.id,
-          name: newMealName.trim(),
-          description: newMealDesc.trim() || undefined,
-          total_calories: totalNutrition.calories,
-          total_protein_g: totalNutrition.protein_g,
-          total_carbs_g: totalNutrition.carbs_g,
-          total_fat_g: totalNutrition.fat_g,
-          total_fiber_g: totalNutrition.fiber_g,
-          servings: 1,
-        })
-        .select()
-        .single()
+      const mealId = crypto.randomUUID()
+      const now = new Date().toISOString()
+      const newMeal: Meal = {
+        id: mealId,
+        user_id: user.id,
+        name: newMealName.trim(),
+        total_calories: totalNutrition.calories,
+        total_protein_g: totalNutrition.protein_g,
+        total_carbs_g: totalNutrition.carbs_g,
+        total_fat_g: totalNutrition.fat_g,
+        created_at: now,
+      }
+      await db.meals.add(newMeal)
 
-      if (error) throw error
-
-      await supabase.from('meal_ingredients').insert(
+      await db.meal_ingredients.bulkAdd(
         pendingIngredients.map((i) => ({
-          meal_id: mealData.id,
-          food_id: i.food_id,
-          food_name: i.food_name,
-          food_brand: i.food_brand,
-          amount_grams: i.amount_grams,
-          portion_label: i.portion_label,
-          calories: i.calories,
-          protein_g: i.protein_g,
-          carbs_g: i.carbs_g,
-          fat_g: i.fat_g,
-          fiber_g: i.fiber_g,
+          ...i,
+          id: crypto.randomUUID(),
+          meal_id: mealId,
         }))
       )
 
@@ -155,7 +139,8 @@ export default function MealsPage() {
   }
 
   const handleDeleteMeal = async (mealId: string) => {
-    await supabase.from('meals').delete().eq('id', mealId)
+    await db.meal_ingredients.where('meal_id').equals(mealId).delete()
+    await db.meals.delete(mealId)
     queryClient.invalidateQueries({ queryKey: ['meals'] })
     setView('list')
     setSelectedMeal(null)

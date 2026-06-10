@@ -32,7 +32,7 @@ export default function Onboarding() {
   const [error, setError] = useState<string | null>(null)
 
   // Form state
-  const [name, setName] = useState(user?.user_metadata?.name ?? '')
+  const [name, setName] = useState(user?.name ?? '')
   const [gender, setGender] = useState<'male' | 'female' | 'other'>('other')
   const [birthYear, setBirthYear] = useState(1990)
   const [height, setHeight] = useState(170)

@@ -9,7 +9,7 @@ import BarcodeScanner from '../components/BarcodeScanner'
 import PortionSelector from '../components/PortionSelector'
 import Layout from '../components/Layout'
 import { getFoodByBarcode } from '../lib/openfoodfacts'
-import { supabase } from '../lib/supabase'
+import { db } from '../lib/db'
 import type { FoodItem, MealType, FavoriteFood } from '../types'
 import { useQuery } from '@tanstack/react-query'
 import { Camera, Heart, ChefHat, Loader2 } from 'lucide-react'
@@ -39,21 +39,13 @@ export default function SearchPage() {
     queryKey: ['favorites', user?.id],
     queryFn: async () => {
       if (!user) return []
-      const { data } = await supabase.from('favorites').select('*').eq('user_id', user.id)
-      return (data ?? []) as FavoriteFood[]
+      return db.favorites.where('user_id').equals(user.id).toArray()
     },
     enabled: !!user,
   })
 
-  const { data: customFoods = [] } = useQuery({
-    queryKey: ['custom_foods', user?.id],
-    queryFn: async () => {
-      if (!user) return []
-      const { data } = await supabase.from('custom_foods').select('*').eq('user_id', user.id)
-      return (data ?? []) as FoodItem[]
-    },
-    enabled: !!user,
-  })
+  // custom_foods is not in Dexie schema; show empty list
+  const customFoods: FoodItem[] = []
 
   const handleScan = async (barcode: string) => {
     setShowScanner(false)
@@ -102,19 +94,21 @@ export default function SearchPage() {
       // Save to favorites if not already there
       const alreadyFav = favorites.some((f) => f.food_id === selectedFood.id)
       if (!alreadyFav) {
-        await supabase.from('favorites').upsert({
+        await db.favorites.add({
+          id: crypto.randomUUID(),
           user_id: user.id,
           food_id: selectedFood.id,
           food_name: selectedFood.name,
-          food_brand: selectedFood.brand,
+          food_brand: selectedFood.brand ?? null,
           calories_per_100g: selectedFood.calories_per_100g,
           protein_per_100g: selectedFood.protein_per_100g,
           carbs_per_100g: selectedFood.carbs_per_100g,
           fat_per_100g: selectedFood.fat_per_100g,
           fiber_per_100g: selectedFood.fiber_per_100g,
-          barcode: selectedFood.barcode,
-          package_weight_g: selectedFood.package_weight_g,
-          image_url: selectedFood.image_url,
+          barcode: selectedFood.barcode ?? null,
+          package_weight_g: selectedFood.package_weight_g ?? null,
+          image_url: selectedFood.image_url ?? null,
+          created_at: new Date().toISOString(),
         })
         refetchFavorites()
       }
@@ -125,14 +119,10 @@ export default function SearchPage() {
         const xpUpdates = await awardXP({ ...profile, ...streakUpdates })
         const updatedProfile = { ...profile, ...streakUpdates, ...xpUpdates }
 
-        // Get total log count
-        const { count } = await supabase
-          .from('log_entries')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', user.id)
+        const count = await db.log_entries.where('user_id').equals(user.id).count()
 
         const earnedKeys = await getEarnedBadges()
-        await checkAndAwardBadges(updatedProfile, earnedKeys, count ?? 0)
+        await checkAndAwardBadges(updatedProfile, earnedKeys, count)
         await updateProfile({ ...streakUpdates, ...xpUpdates })
       }
 

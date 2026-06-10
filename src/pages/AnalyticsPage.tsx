@@ -4,7 +4,7 @@ import { useProfile } from '../hooks/useProfile'
 import { useRewards } from '../hooks/useRewards'
 import Layout from '../components/Layout'
 import BadgeDisplay from '../components/BadgeDisplay'
-import { supabase } from '../lib/supabase'
+import { db } from '../lib/db'
 import { useQuery } from '@tanstack/react-query'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -43,13 +43,11 @@ export default function AnalyticsPage() {
     queryKey: ['week_entries', user?.id, weekDates[0]],
     queryFn: async () => {
       if (!user) return []
-      const { data } = await supabase
-        .from('log_entries')
-        .select('*')
-        .eq('user_id', user.id)
-        .gte('log_date', weekDates[0])
-        .lte('log_date', weekDates[6])
-      return (data ?? []) as LogEntry[]
+      const data = await db.log_entries
+        .where('user_id').equals(user.id)
+        .filter((e) => e.log_date >= weekDates[0] && e.log_date <= weekDates[6])
+        .toArray()
+      return data as LogEntry[]
     },
     enabled: !!user,
   })
@@ -58,13 +56,10 @@ export default function AnalyticsPage() {
     queryKey: ['weight_history', user?.id],
     queryFn: async () => {
       if (!user) return []
-      const { data } = await supabase
-        .from('weight_log')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('log_date', { ascending: true })
-        .limit(30)
-      return (data ?? []) as WeightEntry[]
+      const data = await db.weight_log
+        .where('user_id').equals(user.id)
+        .sortBy('log_date')
+      return data.slice(-30) as WeightEntry[]
     },
     enabled: !!user,
   })
@@ -79,11 +74,7 @@ export default function AnalyticsPage() {
     queryKey: ['log_count', user?.id],
     queryFn: async () => {
       if (!user) return 0
-      const { count } = await supabase
-        .from('log_entries')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-      return count ?? 0
+      return db.log_entries.where('user_id').equals(user.id).count()
     },
     enabled: !!user,
   })

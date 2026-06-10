@@ -1,5 +1,5 @@
 import { useCallback } from 'react'
-import { supabase } from '../lib/supabase'
+import { db } from '../lib/db'
 import type { Profile } from '../types'
 
 export interface BadgeDefinition {
@@ -43,13 +43,10 @@ export function useRewards(userId: string | undefined) {
     const lastLogDate = profile.last_log_date
 
     if (lastLogDate === today) {
-      // Already logged today
       return {}
     } else if (lastLogDate === yesterday) {
-      // Consecutive day
       newStreak += 1
     } else if (lastLogDate !== today) {
-      // Streak broken
       newStreak = 1
     }
 
@@ -58,7 +55,7 @@ export function useRewards(userId: string | undefined) {
       last_log_date: today,
     }
 
-    await supabase.from('profiles').update(updates).eq('id', userId)
+    await db.profiles.update(userId, updates)
     return updates
   }, [userId])
 
@@ -73,7 +70,7 @@ export function useRewards(userId: string | undefined) {
       level: newLevel,
     }
 
-    await supabase.from('profiles').update(updates).eq('id', userId)
+    await db.profiles.update(userId, updates)
     return updates
   }, [userId])
 
@@ -104,10 +101,12 @@ export function useRewards(userId: string | undefined) {
     checkBadge('foods_100', totalLogCount >= 100)
 
     for (const key of newBadges) {
-      await supabase
-        .from('badges')
-        .insert({ user_id: userId, badge_key: key })
-        .select()
+      await db.badges.add({
+        id: crypto.randomUUID(),
+        user_id: userId,
+        badge_key: key,
+        earned_at: new Date().toISOString(),
+      })
     }
 
     return newBadges
@@ -116,12 +115,8 @@ export function useRewards(userId: string | undefined) {
   const getEarnedBadges = useCallback(async (): Promise<string[]> => {
     if (!userId) return []
 
-    const { data } = await supabase
-      .from('badges')
-      .select('badge_key')
-      .eq('user_id', userId)
-
-    return data?.map((b) => b.badge_key) ?? []
+    const badges = await db.badges.where({ user_id: userId }).toArray()
+    return badges.map((b) => b.badge_key)
   }, [userId])
 
   return { updateStreak, awardXP, checkAndAwardBadges, getEarnedBadges, BADGE_DEFINITIONS }

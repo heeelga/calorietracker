@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase } from '../lib/supabase'
+import { db } from '../lib/db'
 import type { LogEntry, MealType } from '../types'
 import { calculateNutrition } from '../lib/nutrition'
 import type { FoodItem } from '../types'
@@ -17,15 +17,13 @@ export function useDailyLog(userId: string | undefined, date: string) {
 
     try {
       setLoading(true)
-      const { data, error: err } = await supabase
-        .from('log_entries')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('log_date', date)
-        .order('created_at', { ascending: true })
+      const data = await db.log_entries
+        .where({ user_id: userId })
+        .filter((e) => e.log_date === date)
+        .toArray()
 
-      if (err) throw err
-      setEntries(data ?? [])
+      data.sort((a, b) => a.created_at.localeCompare(b.created_at))
+      setEntries(data)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Fehler beim Laden')
     } finally {
@@ -54,36 +52,27 @@ export function useDailyLog(userId: string | undefined, date: string) {
       amountGrams
     )
 
-    const entry = {
+    const entry: LogEntry = {
+      id: crypto.randomUUID(),
       user_id: userId,
       log_date: date,
       meal_type: mealType,
       food_id: food.id,
       food_name: food.name,
-      food_brand: food.brand,
+      food_brand: food.brand ?? null,
       amount_grams: amountGrams,
       portion_label: portionLabel,
+      created_at: new Date().toISOString(),
       ...nutrition,
     }
 
-    const { data, error: err } = await supabase
-      .from('log_entries')
-      .insert(entry)
-      .select()
-      .single()
-
-    if (err) throw err
-    setEntries((prev) => [...prev, data])
-    return data
+    await db.log_entries.add(entry)
+    setEntries((prev) => [...prev, entry])
+    return entry
   }
 
   const deleteEntry = async (entryId: string) => {
-    const { error: err } = await supabase
-      .from('log_entries')
-      .delete()
-      .eq('id', entryId)
-
-    if (err) throw err
+    await db.log_entries.delete(entryId)
     setEntries((prev) => prev.filter((e) => e.id !== entryId))
   }
 

@@ -5,7 +5,7 @@ import { useProfile } from '../hooks/useProfile'
 import { useDailyLog } from '../hooks/useDailyLog'
 import MacroRing from '../components/MacroRing'
 import Layout from '../components/Layout'
-import { supabase } from '../lib/supabase'
+import { db } from '../lib/db'
 import { Flame, Star, Plus, Scale } from 'lucide-react'
 import type { MealType } from '../types'
 import { MEAL_TYPE_LABELS } from '../types'
@@ -47,10 +47,17 @@ export default function Dashboard() {
     const kg = parseFloat(weightInput)
     if (isNaN(kg)) return
 
-    await supabase.from('weight_log').upsert({
+    // Upsert: delete existing entry for same user+date then add
+    await db.weight_log
+      .where({ user_id: user.id })
+      .filter((w) => w.log_date === today)
+      .delete()
+    await db.weight_log.add({
+      id: crypto.randomUUID(),
       user_id: user.id,
       log_date: today,
       weight_kg: kg,
+      created_at: new Date().toISOString(),
     })
     setWeightSaved(true)
     setTimeout(() => setWeightSaved(false), 2000)
