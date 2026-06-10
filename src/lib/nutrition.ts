@@ -25,7 +25,11 @@ export function calculateTDEE(bmr: number, activityLevel: string): number {
   return Math.round(bmr * multiplier)
 }
 
-export function calculateTargets(profile: Profile): {
+export function calculateTargets(
+  profile: Profile,
+  targetWeight?: number | null,
+  timeframeWeeks?: number | null
+): {
   calories: number
   protein: number
   carbs: number
@@ -33,7 +37,6 @@ export function calculateTargets(profile: Profile): {
 } {
   const currentYear = new Date().getFullYear()
   const age = profile.birth_year ? currentYear - profile.birth_year : 30
-  // age used below
   const weight = profile.weight_kg ?? 70
   const height = profile.height_cm ?? 170
   const gender = profile.gender ?? 'other'
@@ -41,13 +44,33 @@ export function calculateTargets(profile: Profile): {
   const goal = profile.goal ?? 'maintain'
 
   const bmr = calculateBMR(weight, height, age, gender)
-  let tdee = calculateTDEE(bmr, activityLevel)
+  const tdee = calculateTDEE(bmr, activityLevel)
 
-  // Goal adjustments
-  if (goal === 'lose') tdee -= 500
-  else if (goal === 'gain') tdee += 300
+  let calories = tdee
 
-  const calories = Math.max(1200, tdee)
+  if (goal === 'maintain') {
+    // No adjustment
+  } else if (targetWeight != null && timeframeWeeks != null && timeframeWeeks > 0) {
+    // Use timeline-based calculation
+    const kgDiff = Math.abs(targetWeight - weight)
+    const days = timeframeWeeks * 7
+    const kcalPerDay = (kgDiff * 7700) / days
+
+    if (goal === 'lose') {
+      const deficit = Math.min(kcalPerDay, 1000)
+      calories = tdee - deficit
+    } else {
+      // gain
+      const surplus = Math.min(kcalPerDay, 500)
+      calories = tdee + surplus
+    }
+  } else {
+    // Flat fallback
+    if (goal === 'lose') calories = tdee - 500
+    else if (goal === 'gain') calories = tdee + 300
+  }
+
+  calories = Math.max(1200, Math.round(calories))
 
   // Macros: 30% protein, 40% carbs, 30% fat
   const protein = Math.round((calories * 0.3) / 4)

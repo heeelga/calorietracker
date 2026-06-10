@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useProfile } from '../hooks/useProfile'
-import { calculateTargets } from '../lib/nutrition'
+import { calculateTargets, calculateBMR, calculateTDEE } from '../lib/nutrition'
 import type { Profile } from '../types'
 import { ChevronRight, ChevronLeft } from 'lucide-react'
 
@@ -16,10 +16,13 @@ const ACTIVITY_OPTIONS = [
   { value: 'very_active', label: 'Sehr aktiv', desc: 'Harter Sport täglich oder Arbeit' },
 ]
 
-const GOAL_OPTIONS = [
-  { value: 'lose', label: 'Abnehmen', desc: '500 kcal Defizit', emoji: '📉' },
-  { value: 'maintain', label: 'Gewicht halten', desc: 'Kein Defizit', emoji: '⚖️' },
-  { value: 'gain', label: 'Zunehmen', desc: '300 kcal Überschuss', emoji: '📈' },
+const TIMEFRAME_OPTIONS = [
+  { label: '4 Wochen', weeks: 4 },
+  { label: '8 Wochen', weeks: 8 },
+  { label: '12 Wochen', weeks: 12 },
+  { label: '16 Wochen', weeks: 16 },
+  { label: '6 Monate', weeks: 26 },
+  { label: '1 Jahr', weeks: 52 },
 ]
 
 export default function Onboarding() {
@@ -39,6 +42,37 @@ export default function Onboarding() {
   const [weight, setWeight] = useState(70)
   const [activityLevel, setActivityLevel] = useState<Profile['activity_level']>('moderate')
   const [goal, setGoal] = useState<Profile['goal']>('maintain')
+  const [targetWeight, setTargetWeight] = useState(65)
+  const [timeframeWeeks, setTimeframeWeeks] = useState(12)
+
+  // Live deficit calculation
+  const deficitInfo = useMemo(() => {
+    if (goal === 'maintain') return null
+    const currentYear = new Date().getFullYear()
+    const age = currentYear - birthYear
+    const bmr = calculateBMR(weight, height, age, gender)
+    const tdee = calculateTDEE(bmr, activityLevel ?? 'moderate')
+    const kgDiff = Math.abs(targetWeight - weight)
+    const days = timeframeWeeks * 7
+    const kcalPerDay = (kgDiff * 7700) / days
+    const cappedKcal = goal === 'lose' ? Math.min(kcalPerDay, 1000) : Math.min(kcalPerDay, 500)
+    const calorieTarget = goal === 'lose' ? tdee - cappedKcal : tdee + cappedKcal
+
+    let intensity: 'aggressive' | 'ambitious' | 'healthy'
+    if (kcalPerDay > 1000) intensity = 'aggressive'
+    else if (kcalPerDay > 750) intensity = 'ambitious'
+    else intensity = 'healthy'
+
+    return {
+      kgDiff: Math.round(kgDiff * 10) / 10,
+      kcalPerDay: Math.round(kcalPerDay),
+      cappedKcal: Math.round(cappedKcal),
+      calorieTarget: Math.max(1200, Math.round(calorieTarget)),
+      tdee,
+      intensity,
+      isCapped: kcalPerDay > cappedKcal,
+    }
+  }, [goal, weight, targetWeight, timeframeWeeks, birthYear, height, gender, activityLevel])
 
   const previewProfile: Profile = {
     id: user?.id ?? '',
@@ -58,11 +92,16 @@ export default function Onboarding() {
     streak_days: 0,
     last_log_date: null,
     onboarding_done: false,
-    target_weight_kg: null,
+    target_weight_kg: goal !== 'maintain' ? targetWeight : null,
     password_hash: null,
     created_at: new Date().toISOString(),
   }
-  const targets = calculateTargets(previewProfile)
+
+  const targets = calculateTargets(
+    previewProfile,
+    goal !== 'maintain' ? targetWeight : null,
+    goal !== 'maintain' ? timeframeWeeks : null
+  )
 
   const handleFinish = async () => {
     setLoading(true)
@@ -76,6 +115,7 @@ export default function Onboarding() {
         weight_kg: weight,
         activity_level: activityLevel,
         goal,
+        target_weight_kg: goal !== 'maintain' ? targetWeight : null,
         calorie_target: targets.calories,
         protein_target_g: targets.protein,
         carbs_target_g: targets.carbs,
@@ -235,34 +275,115 @@ export default function Onboarding() {
 
       {/* Step 4: Goal + targets */}
       {step === 4 && (
-        <div className="flex-1 flex flex-col gap-4">
+        <div className="flex-1 flex flex-col gap-4 overflow-y-auto">
           <div>
             <h2 className="text-2xl font-bold text-slate-100 mb-1">Dein Ziel</h2>
             <p className="text-slate-400">Was möchtest du erreichen?</p>
           </div>
 
-          <div className="flex flex-col gap-2">
-            {GOAL_OPTIONS.map((opt) => (
+          {/* Goal selector */}
+          <div className="flex gap-2">
+            {(
+              [
+                { value: 'lose', label: 'Abnehmen', emoji: '📉' },
+                { value: 'maintain', label: 'Halten', emoji: '⚖️' },
+                { value: 'gain', label: 'Zunehmen', emoji: '📈' },
+              ] as const
+            ).map((opt) => (
               <button
                 key={opt.value}
-                onClick={() => setGoal(opt.value as Profile['goal'])}
-                className={`flex items-center gap-3 p-4 rounded-xl text-left transition-colors ${
+                onClick={() => setGoal(opt.value)}
+                className={`flex-1 flex flex-col items-center gap-1 py-3 rounded-xl text-sm font-medium transition-colors ${
                   goal === opt.value
-                    ? 'bg-green-500/20 border border-green-500'
-                    : 'bg-slate-800 border border-transparent hover:border-slate-600'
+                    ? 'bg-green-500/20 border border-green-500 text-green-400'
+                    : 'bg-slate-800 border border-transparent hover:border-slate-600 text-slate-300'
                 }`}
               >
-                <span className="text-2xl">{opt.emoji}</span>
-                <div>
-                  <p className="font-medium text-slate-100">{opt.label}</p>
-                  <p className="text-xs text-slate-400">{opt.desc}</p>
-                </div>
+                <span className="text-xl">{opt.emoji}</span>
+                {opt.label}
               </button>
             ))}
           </div>
 
+          {/* Target weight + timeframe */}
+          {goal !== 'maintain' && (
+            <div className="flex flex-col gap-4 bg-slate-800 rounded-2xl p-4">
+              <div>
+                <label className="block text-sm text-slate-400 mb-1.5">
+                  Aktuelles Gewicht: <span className="text-slate-100 font-semibold">{weight} kg</span>
+                </label>
+                <label className="block text-sm text-slate-400 mb-1.5 mt-3">
+                  Zielgewicht: <span className="text-slate-100 font-semibold">{targetWeight} kg</span>
+                </label>
+                <input
+                  type="range"
+                  min={30}
+                  max={200}
+                  value={targetWeight}
+                  onChange={(e) => setTargetWeight(parseInt(e.target.value))}
+                  className="w-full accent-green-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm text-slate-400 mb-2">Zeitrahmen</label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {TIMEFRAME_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.weeks}
+                      onClick={() => setTimeframeWeeks(opt.weeks)}
+                      className={`py-2 rounded-xl text-xs font-medium transition-colors ${
+                        timeframeWeeks === opt.weeks
+                          ? 'bg-green-500 text-white'
+                          : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Live calculation */}
+              {deficitInfo && (
+                <div className="flex flex-col gap-2 pt-2 border-t border-slate-700">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-400">Differenz:</span>
+                    <span className="text-slate-100 font-semibold">{deficitInfo.kgDiff} kg</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-400">
+                      Benötigtes Tages{goal === 'lose' ? 'defizit' : 'überschuss'}:
+                    </span>
+                    <span className="text-slate-100 font-semibold">{deficitInfo.kcalPerDay} kcal</span>
+                  </div>
+                  {deficitInfo.isCapped && (
+                    <p className="text-xs text-amber-400">
+                      Auf {deficitInfo.cappedKcal} kcal begrenzt (gesünder)
+                    </p>
+                  )}
+                  {deficitInfo.intensity === 'aggressive' && (
+                    <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-2.5">
+                      <p className="text-red-400 text-xs">⚠️ Sehr aggressiv — empfohlen: max. 1kg/Woche</p>
+                    </div>
+                  )}
+                  {deficitInfo.intensity === 'ambitious' && (
+                    <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-2.5">
+                      <p className="text-amber-400 text-xs">Ambitioniert — machbar mit Disziplin</p>
+                    </div>
+                  )}
+                  {deficitInfo.intensity === 'healthy' && (
+                    <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-2.5">
+                      <p className="text-green-400 text-xs">Gesund & nachhaltig ✓</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Calculated targets */}
-          <div className="bg-slate-800 rounded-2xl p-4 mt-2">
+          <div className="bg-slate-800 rounded-2xl p-4">
             <p className="text-sm text-slate-400 mb-3">Dein tägliches Kalorienziel:</p>
             <p className="text-4xl font-bold text-green-400 mb-3">{targets.calories} kcal</p>
             <div className="grid grid-cols-3 gap-3 text-center">
