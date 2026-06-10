@@ -1,7 +1,9 @@
 import { NavLink } from 'react-router-dom'
-import { BookOpen, Search, UtensilsCrossed, BarChart2, User } from 'lucide-react'
+import { BookOpen, Search, UtensilsCrossed, BarChart2, User, ShieldCheck } from 'lucide-react'
+import { useAuth } from '../hooks/useAuth'
+import { useProfile } from '../hooks/useProfile'
 
-const navItems = [
+const baseNavItems = [
   { to: '/diary', icon: BookOpen, label: 'Tagebuch' },
   { to: '/search', icon: Search, label: 'Suche' },
   { to: '/meals', icon: UtensilsCrossed, label: 'Gerichte' },
@@ -10,6 +12,13 @@ const navItems = [
 ]
 
 export default function BottomNav() {
+  const { user } = useAuth()
+  const { profile } = useProfile(user?.id)
+
+  const navItems = profile?.is_admin
+    ? [...baseNavItems, { to: '/admin', icon: ShieldCheck, label: 'Admin' }]
+    : baseNavItems
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-slate-900 border-t border-slate-700 safe-area-bottom">
       <div className="flex items-stretch max-w-lg mx-auto">

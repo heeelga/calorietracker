@@ -79,14 +79,14 @@ export function useRewards(userId: string | undefined) {
     profile: Profile,
     earnedBadgeKeys: string[],
     totalLogCount: number
-  ) => {
-    if (!userId) return
+  ): Promise<BadgeDefinition[]> => {
+    if (!userId) return []
 
-    const newBadges: string[] = []
+    const newBadgeKeys: string[] = []
 
     const checkBadge = (key: string, condition: boolean) => {
       if (condition && !earnedBadgeKeys.includes(key)) {
-        newBadges.push(key)
+        newBadgeKeys.push(key)
       }
     }
 
@@ -101,7 +101,7 @@ export function useRewards(userId: string | undefined) {
     checkBadge('foods_50', totalLogCount >= 50)
     checkBadge('foods_100', totalLogCount >= 100)
 
-    for (const key of newBadges) {
+    for (const key of newBadgeKeys) {
       await db.badges.add({
         id: generateId(),
         user_id: userId,
@@ -110,7 +110,9 @@ export function useRewards(userId: string | undefined) {
       })
     }
 
-    return newBadges
+    return newBadgeKeys
+      .map((key) => BADGE_DEFINITIONS.find((b) => b.key === key))
+      .filter((b): b is BadgeDefinition => b !== undefined)
   }, [userId])
 
   const getEarnedBadges = useCallback(async (): Promise<string[]> => {

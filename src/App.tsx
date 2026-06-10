@@ -11,6 +11,7 @@ import SearchPage from './pages/SearchPage'
 import MealsPage from './pages/MealsPage'
 import AnalyticsPage from './pages/AnalyticsPage'
 import ProfilePage from './pages/ProfilePage'
+import AdminPage from './pages/AdminPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -121,6 +122,15 @@ export default function App() {
             <OnboardingGuard>
               <ProfilePage />
             </OnboardingGuard>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute>
+            <AdminPage />
           </ProtectedRoute>
         }
       />
