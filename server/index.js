@@ -31,10 +31,12 @@ app.use('/api/admin', adminRouter)
 // Serve React app in production
 if (process.env.NODE_ENV === 'production') {
   const distPath = path.join(__dirname, '../dist')
-  app.use(express.static(distPath))
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(distPath, 'index.html'))
-  })
+  if (fs.existsSync(distPath)) {
+    app.use(express.static(distPath))
+    app.get('*', (req, res) => {
+      res.sendFile(path.join(distPath, 'index.html'))
+    })
+  }
 }
 
 async function initDB() {
@@ -44,18 +46,29 @@ async function initDB() {
   for (const stmt of statements) {
     await pool.query(stmt)
   }
-  console.log('Database schema initialized')
+  console.log('Datenbankschema initialisiert')
+}
+
+async function initDBWithRetry(maxRetries = 10, delayMs = 3000) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      await initDB()
+      return
+    } catch (err) {
+      console.error(`DB-Verbindung fehlgeschlagen (Versuch ${attempt}/${maxRetries}): ${err.message}`)
+      if (attempt === maxRetries) {
+        console.error('Maximale Versuche erreicht. Server wird beendet.')
+        process.exit(1)
+      }
+      await new Promise(r => setTimeout(r, delayMs))
+    }
+  }
 }
 
 const PORT = process.env.PORT || 3001
 
-initDB()
-  .then(() => {
-    app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`)
-    })
-  })
-  .catch((err) => {
-    console.error('Failed to initialize database:', err)
-    process.exit(1)
-  })
+// Start server immediately, init DB in background with retry
+app.listen(PORT, () => {
+  console.log(`Server läuft auf Port ${PORT}`)
+  initDBWithRetry().catch(() => process.exit(1))
+})
