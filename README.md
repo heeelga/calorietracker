@@ -28,7 +28,7 @@ A self-hosted calorie and body measurement tracking PWA — a privacy-focused al
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/your-username/calorietracker.git
+git clone https://github.com/heeelga/calorietracker.git
 cd calorietracker
 ```
 
