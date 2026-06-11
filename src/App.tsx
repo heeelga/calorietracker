@@ -12,6 +12,7 @@ import MealsPage from './pages/MealsPage'
 import AnalyticsPage from './pages/AnalyticsPage'
 import ProfilePage from './pages/ProfilePage'
 import AdminPage from './pages/AdminPage'
+import BodyPage from './pages/BodyPage'
 
 // Single spinner shown only during the very first auth check
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -115,6 +116,16 @@ export default function App() {
           <ProtectedRoute>
             <OnboardingGuard>
               <ProfilePage />
+            </OnboardingGuard>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/body"
+        element={
+          <ProtectedRoute>
+            <OnboardingGuard>
+              <BodyPage />
             </OnboardingGuard>
           </ProtectedRoute>
         }

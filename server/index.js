@@ -19,6 +19,7 @@ const badgesRouter = require('./routes/badges')
 const favoritesRouter = require('./routes/favorites')
 const adminRouter = require('./routes/admin')
 const dataRouter = require('./routes/data')
+const measurementsRouter = require('./routes/measurements')
 
 app.use('/api/auth', authRouter)
 app.use('/api/profile', profileRouter)
@@ -29,6 +30,7 @@ app.use('/api/badges', badgesRouter)
 app.use('/api/favorites', favoritesRouter)
 app.use('/api/admin', adminRouter)
 app.use('/api/data', dataRouter)
+app.use('/api/measurements', measurementsRouter)
 
 // Serve React app in production
 if (process.env.NODE_ENV === 'production') {

@@ -122,3 +122,17 @@ CREATE TABLE IF NOT EXISTS meal_shares (
   INDEX idx_meal (meal_id),
   INDEX idx_shared_with (shared_with_id)
 );
+
+CREATE TABLE IF NOT EXISTS body_measurements (
+  id VARCHAR(36) PRIMARY KEY,
+  user_id VARCHAR(36) NOT NULL,
+  log_date DATE NOT NULL,
+  weight_kg DECIMAL(5,2),
+  fat_pct DECIMAL(5,2),
+  muscle_pct DECIMAL(5,2),
+  visceral TINYINT UNSIGNED,
+  note TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_user_date (user_id, log_date)
+);
+);
