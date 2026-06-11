@@ -6,6 +6,7 @@ import { useDailyLog } from '../hooks/useDailyLog'
 import MacroRing from '../components/MacroRing'
 import Layout from '../components/Layout'
 import { api } from '../lib/api'
+import { calculateTargets } from '../lib/nutrition'
 import { useRewards } from '../hooks/useRewards'
 import { useBadgeNotification } from '../contexts/BadgeNotificationContext'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -85,6 +86,24 @@ export default function Dashboard() {
       })
       queryClient.invalidateQueries({ queryKey: ['measurements'] })
       if (profile) {
+        // Recalculate calorie/macro targets using body composition (Katch-McArdle if fat% known)
+        const newWeight = bodyWeight ? parseFloat(bodyWeight) : null
+        const newFat = bodyFat ? parseFloat(bodyFat) : null
+        const newMuscle = bodyMuscle ? parseFloat(bodyMuscle) : null
+        const updatedProfile = newWeight ? { ...profile, weight_kg: newWeight } : profile
+        const targets = calculateTargets(updatedProfile, profile.target_weight_kg, null, {
+          fat_pct: newFat,
+          muscle_pct: newMuscle,
+        })
+        await api.put('/profile', {
+          ...(newWeight ? { weight_kg: newWeight } : {}),
+          calorie_target: targets.calories,
+          protein_target_g: targets.protein,
+          carbs_target_g: targets.carbs,
+          fat_target_g: targets.fat,
+        })
+        queryClient.invalidateQueries({ queryKey: ['profile'] })
+
         const earnedKeys = await getEarnedBadges()
         const newBadges = await checkAndAwardBadges(profile, earnedKeys, 0, { weightLogged: true })
         for (const badge of newBadges) showBadge(badge)

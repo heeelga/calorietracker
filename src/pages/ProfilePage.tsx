@@ -85,14 +85,33 @@ export default function ProfilePage() {
     if (!editingMeasurement) return
     setMSaving(true)
     try {
+      const newWeight = mWeight ? parseFloat(mWeight) : null
+      const newFat = mFat ? parseFloat(mFat) : null
+      const newMuscle = mMuscle ? parseFloat(mMuscle) : null
       await api.put(`/measurements/${editingMeasurement.id}`, {
         log_date: mDate,
-        weight_kg: mWeight ? parseFloat(mWeight) : null,
-        fat_pct: mFat ? parseFloat(mFat) : null,
-        muscle_pct: mMuscle ? parseFloat(mMuscle) : null,
+        weight_kg: newWeight,
+        fat_pct: newFat,
+        muscle_pct: newMuscle,
         visceral: mVisceral ? parseInt(mVisceral) : null,
         note: mNote || null,
       })
+      // Recalculate calorie targets with updated body composition
+      if (profile) {
+        const updatedProfile = newWeight ? { ...profile, weight_kg: newWeight } : profile
+        const targets = calculateTargets(updatedProfile, profile.target_weight_kg, null, {
+          fat_pct: newFat,
+          muscle_pct: newMuscle,
+        })
+        await api.put('/profile', {
+          ...(newWeight ? { weight_kg: newWeight } : {}),
+          calorie_target: targets.calories,
+          protein_target_g: targets.protein,
+          carbs_target_g: targets.carbs,
+          fat_target_g: targets.fat,
+        })
+        queryClient.invalidateQueries({ queryKey: ['profile'] })
+      }
       queryClient.invalidateQueries({ queryKey: ['measurements'] })
       setEditingMeasurement(null)
     } finally {

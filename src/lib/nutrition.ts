@@ -4,13 +4,21 @@ export function calculateBMR(
   weight: number,
   height: number,
   age: number,
-  gender: 'male' | 'female' | 'other'
+  gender: 'male' | 'female' | 'other',
+  fatPct?: number | null,
+  musclePct?: number | null
 ): number {
-  // Mifflin-St Jeor equation
+  // If body composition is known, use Katch-McArdle (lean body mass based)
+  // which accounts for the fact that muscle burns more calories than fat
+  if (fatPct != null && fatPct > 3 && fatPct < 60) {
+    const lbm = weight * (1 - fatPct / 100)
+    return Math.round(370 + 21.6 * lbm)
+  }
+  // Fallback: Mifflin-St Jeor equation
   const base = 10 * weight + 6.25 * height - 5 * age
   if (gender === 'male') return Math.round(base + 5)
   if (gender === 'female') return Math.round(base - 161)
-  return Math.round(base - 78) // average for 'other'
+  return Math.round(base - 78)
 }
 
 export function calculateTDEE(bmr: number, activityLevel: string): number {
@@ -28,7 +36,8 @@ export function calculateTDEE(bmr: number, activityLevel: string): number {
 export function calculateTargets(
   profile: Profile,
   targetWeight?: number | null,
-  timeframeWeeks?: number | null
+  timeframeWeeks?: number | null,
+  bodyComp?: { fat_pct?: number | null; muscle_pct?: number | null } | null
 ): {
   calories: number
   protein: number
@@ -43,7 +52,7 @@ export function calculateTargets(
   const activityLevel = profile.activity_level ?? 'moderate'
   const goal = profile.goal ?? 'maintain'
 
-  const bmr = calculateBMR(weight, height, age, gender)
+  const bmr = calculateBMR(weight, height, age, gender, bodyComp?.fat_pct, bodyComp?.muscle_pct)
   const tdee = calculateTDEE(bmr, activityLevel)
 
   let calories = tdee

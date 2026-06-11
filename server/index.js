@@ -1,13 +1,43 @@
 require('dotenv').config()
 const express = require('express')
 const cors = require('cors')
+const helmet = require('helmet')
+const rateLimit = require('express-rate-limit')
 const path = require('path')
 const fs = require('fs')
 
 const app = express()
 
-app.use(cors())
-app.use(express.json())
+// Security headers
+app.use(helmet({
+  contentSecurityPolicy: false, // handled by Traefik / PWA needs flexibility
+  crossOriginEmbedderPolicy: false,
+}))
+
+// CORS — allow configured origin or same-origin in production
+const allowedOrigin = process.env.ALLOWED_ORIGIN || '*'
+app.use(cors({ origin: allowedOrigin }))
+
+// Body size limit (prevent large payload abuse, e.g. huge base64 images — 5 MB cap)
+app.use(express.json({ limit: '5mb' }))
+
+// Rate limiting on auth endpoints
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Zu viele Anfragen. Bitte warte 15 Minuten.' },
+})
+
+// General API rate limit
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Zu viele Anfragen.' },
+})
 
 // Routes
 const authRouter = require('./routes/auth')
@@ -21,7 +51,8 @@ const adminRouter = require('./routes/admin')
 const dataRouter = require('./routes/data')
 const measurementsRouter = require('./routes/measurements')
 
-app.use('/api/auth', authRouter)
+app.use('/api/auth', authLimiter, authRouter)
+app.use('/api', apiLimiter)
 app.use('/api/profile', profileRouter)
 app.use('/api/log', logRouter)
 app.use('/api/meals', mealsRouter)
