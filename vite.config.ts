@@ -46,20 +46,29 @@ export default defineConfig({
         ]
       },
       workbox: {
+        skipWaiting: true,
+        clientsClaim: true,
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        navigateFallback: null,
         runtimeCaching: [
           {
+            urlPattern: ({ request }: { request: Request }) => request.mode === 'navigate',
+            handler: 'NetworkFirst' as const,
+            options: { cacheName: 'html-cache' },
+          },
+          {
+            urlPattern: /^\/api\/.*/,
+            handler: 'NetworkOnly' as const,
+          },
+          {
             urlPattern: /^https:\/\/world\.openfoodfacts\.org\/.*/i,
-            handler: 'NetworkFirst',
+            handler: 'NetworkFirst' as const,
             options: {
               cacheName: 'openfoodfacts-cache',
-              expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24
-              }
-            }
-          }
-        ]
+              expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 },
+            },
+          },
+        ],
       }
     })
   ]

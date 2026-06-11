@@ -36,8 +36,18 @@ app.use('/api/measurements', measurementsRouter)
 if (process.env.NODE_ENV === 'production') {
   const distPath = path.join(__dirname, '../dist')
   if (fs.existsSync(distPath)) {
+    // No-cache headers for SW + HTML so updates are picked up immediately
+    app.use((req, res, next) => {
+      if (req.path === '/sw.js' || req.path.match(/workbox-.*\.js$/)) {
+        res.setHeader('Cache-Control', 'no-store')
+      } else if (req.path === '/' || req.path.endsWith('.html')) {
+        res.setHeader('Cache-Control', 'no-cache')
+      }
+      next()
+    })
     app.use(express.static(distPath))
     app.get('*', (req, res) => {
+      res.setHeader('Cache-Control', 'no-cache')
       res.sendFile(path.join(distPath, 'index.html'))
     })
   }

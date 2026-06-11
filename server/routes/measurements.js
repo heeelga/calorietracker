@@ -41,6 +41,17 @@ router.post('/', requireAuth, async (req, res) => {
        now]
     )
 
+    // Mirror weight into weight_log so analytics chart stays populated
+    if (weight_kg != null) {
+      await pool.query(
+        `INSERT INTO weight_log (id, user_id, log_date, weight_kg, created_at)
+         VALUES (?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE weight_kg = VALUES(weight_kg)`,
+        [uuidv4(), req.user.id, log_date, weight_kg,
+         now]
+      )
+    }
+
     const [rows] = await pool.query('SELECT * FROM body_measurements WHERE id = ?', [id])
     res.status(201).json(rows[0])
   } catch (err) {

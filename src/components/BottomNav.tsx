@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { Home, BookOpen, Search, UtensilsCrossed, BarChart2, User, ShieldCheck, Activity } from 'lucide-react'
+import { Home, BookOpen, Search, UtensilsCrossed, BarChart2, User, ShieldCheck } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useProfile } from '../hooks/useProfile'
 
@@ -8,7 +8,6 @@ const baseNavItems = [
   { to: '/diary', icon: BookOpen, label: 'Tagebuch' },
   { to: '/search', icon: Search, label: 'Suche' },
   { to: '/meals', icon: UtensilsCrossed, label: 'Gerichte' },
-  { to: '/body', icon: Activity, label: 'Körper' },
   { to: '/analytics', icon: BarChart2, label: 'Analyse' },
   { to: '/profile', icon: User, label: 'Profil' },
 ]
@@ -38,9 +37,9 @@ export default function BottomNav() {
             {({ isActive }) => (
               <>
                 <div className={`p-1 rounded-lg transition-colors ${isActive ? 'bg-green-500/10' : ''}`}>
-                  <Icon size={18} strokeWidth={isActive ? 2.5 : 1.5} />
+                  <Icon size={20} strokeWidth={isActive ? 2.5 : 1.5} />
                 </div>
-                <span className="text-[9px] font-medium">{label}</span>
+                <span className="text-[10px] font-medium">{label}</span>
               </>
             )}
           </NavLink>
