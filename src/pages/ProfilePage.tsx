@@ -1,9 +1,10 @@
-import { useState, type FormEvent } from 'react'
+import { useState, useRef, type FormEvent } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useProfile } from '../hooks/useProfile'
 import { calculateTargets } from '../lib/nutrition'
+import { api, getToken } from '../lib/api'
 import Layout from '../components/Layout'
-import { LogOut, Save, RefreshCw, Flame, Star } from 'lucide-react'
+import { LogOut, Save, RefreshCw, Flame, Star, Download, Upload } from 'lucide-react'
 
 const ACTIVITY_LABELS: Record<string, string> = {
   sedentary: 'Sitzend',
@@ -26,6 +27,10 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [exportLoading, setExportLoading] = useState(false)
+  const [importLoading, setImportLoading] = useState(false)
+  const [importResult, setImportResult] = useState<string | null>(null)
+  const importInputRef = useRef<HTMLInputElement>(null)
 
   // Edit form state
   const [name, setName] = useState('')
@@ -69,6 +74,50 @@ export default function ProfilePage() {
       setError(err instanceof Error ? err.message : 'Fehler beim Speichern')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleExport = async () => {
+    setExportLoading(true)
+    try {
+      const token = getToken()
+      const res = await fetch('/api/data/export', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      const cd = res.headers.get('Content-Disposition') ?? ''
+      const match = cd.match(/filename="([^"]+)"/)
+      a.download = match ? match[1] : 'kaltracker-export.json'
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      setError('Export fehlgeschlagen')
+    } finally {
+      setExportLoading(false)
+    }
+  }
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImportLoading(true)
+    setImportResult(null)
+    try {
+      const text = await file.text()
+      const data = JSON.parse(text)
+      const result = await api.post('/data/import', data)
+      const { imported } = result
+      setImportResult(
+        `Import erfolgreich: ${imported.log_entries} Einträge, ${imported.meals} Gerichte, ${imported.favorites} Lebensmittel, ${imported.badges} Abzeichen`
+      )
+    } catch (err) {
+      setImportResult('Import fehlgeschlagen: ' + (err instanceof Error ? err.message : 'Unbekannter Fehler'))
+    } finally {
+      setImportLoading(false)
+      if (importInputRef.current) importInputRef.current.value = ''
     }
   }
 
@@ -280,6 +329,43 @@ export default function ProfilePage() {
             <p className="text-green-400 text-sm font-medium">Gespeichert!</p>
           </div>
         )}
+
+        {/* Export / Import */}
+        <div className="bg-slate-800 rounded-2xl p-4">
+          <h3 className="text-sm font-semibold text-slate-300 mb-3">Daten sichern &amp; wiederherstellen</h3>
+          <div className="flex flex-col gap-2">
+            <button
+              onClick={handleExport}
+              disabled={exportLoading}
+              className="flex items-center justify-center gap-2 py-2.5 bg-slate-700 text-slate-200 font-medium rounded-xl hover:bg-slate-600 transition-colors disabled:opacity-50 text-sm"
+            >
+              <Download size={15} />
+              {exportLoading ? 'Wird exportiert…' : 'Daten exportieren (JSON)'}
+            </button>
+
+            <button
+              onClick={() => importInputRef.current?.click()}
+              disabled={importLoading}
+              className="flex items-center justify-center gap-2 py-2.5 bg-slate-700 text-slate-200 font-medium rounded-xl hover:bg-slate-600 transition-colors disabled:opacity-50 text-sm"
+            >
+              <Upload size={15} />
+              {importLoading ? 'Wird importiert…' : 'Daten importieren (JSON)'}
+            </button>
+            <input
+              ref={importInputRef}
+              type="file"
+              accept=".json,application/json"
+              className="hidden"
+              onChange={handleImport}
+            />
+
+            {importResult && (
+              <p className={`text-xs mt-1 ${importResult.startsWith('Import erfolgreich') ? 'text-green-400' : 'text-red-400'}`}>
+                {importResult}
+              </p>
+            )}
+          </div>
+        </div>
 
         {/* Sign out */}
         <button

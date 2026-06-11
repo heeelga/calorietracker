@@ -78,6 +78,9 @@ router.post('/login', async (req, res) => {
 
 // GET /api/auth/mtls — auto-login via Traefik X-Forwarded-Tls-Client-Cert-Info header
 router.get('/mtls', async (req, res) => {
+  if (process.env.MTLS_ENABLED !== 'true') {
+    return res.status(404).json({ error: 'mTLS-Login nicht aktiviert' })
+  }
   try {
     const certInfo = req.headers['x-forwarded-tls-client-cert-info']
     if (!certInfo) return res.status(401).json({ error: 'Kein Zertifikat' })
