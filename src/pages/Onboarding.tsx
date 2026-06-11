@@ -97,6 +97,7 @@ export default function Onboarding() {
     password_hash: null,
     is_admin: false,
     is_banned: false,
+    avatar_url: null,
     created_at: new Date().toISOString(),
   }
 

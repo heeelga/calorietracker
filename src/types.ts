@@ -94,6 +94,7 @@ export interface Meal {
   total_protein_g: number
   total_carbs_g: number
   total_fat_g: number
+  image_url?: string | null
   created_at: string
   ingredients?: MealIngredient[]
   shares?: MealShare[]
