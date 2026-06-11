@@ -5,7 +5,28 @@ import { calculateTargets } from '../lib/nutrition'
 import { api, getToken } from '../lib/api'
 import { resizeImageToBase64 } from '../lib/imageUtils'
 import Layout from '../components/Layout'
-import { LogOut, Save, RefreshCw, Flame, Star, Download, Upload, Camera } from 'lucide-react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { LogOut, Save, RefreshCw, Flame, Star, Download, Upload, Camera, Pencil, Trash2, X } from 'lucide-react'
+
+interface BodyMeasurement {
+  id: string
+  log_date: string
+  weight_kg: number | null
+  fat_pct: number | null
+  muscle_pct: number | null
+  visceral: number | null
+  note: string | null
+}
+
+function fmtDate(d: string) {
+  return new Date(String(d).slice(0, 10)).toLocaleDateString('de-DE', {
+    day: 'numeric', month: 'short', year: 'numeric',
+  })
+}
+
+function fmt(v: number | null, decimals = 1) {
+  return v != null ? Number(v).toFixed(decimals) : '—'
+}
 
 const ACTIVITY_LABELS: Record<string, string> = {
   sedentary: 'Sitzend',
@@ -24,6 +45,7 @@ const GOAL_LABELS: Record<string, string> = {
 export default function ProfilePage() {
   const { user, signOut } = useAuth()
   const { profile, loading, updateProfile } = useProfile(user?.id)
+  const queryClient = useQueryClient()
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [success, setSuccess] = useState(false)
@@ -32,8 +54,56 @@ export default function ProfilePage() {
   const [importLoading, setImportLoading] = useState(false)
   const [importResult, setImportResult] = useState<string | null>(null)
   const [avatarLoading, setAvatarLoading] = useState(false)
+  const [editingMeasurement, setEditingMeasurement] = useState<BodyMeasurement | null>(null)
+  const [mDate, setMDate] = useState('')
+  const [mWeight, setMWeight] = useState('')
+  const [mFat, setMFat] = useState('')
+  const [mMuscle, setMMuscle] = useState('')
+  const [mVisceral, setMVisceral] = useState('')
+  const [mNote, setMNote] = useState('')
+  const [mSaving, setMSaving] = useState(false)
   const importInputRef = useRef<HTMLInputElement>(null)
   const avatarInputRef = useRef<HTMLInputElement>(null)
+
+  const { data: measurements = [] } = useQuery({
+    queryKey: ['measurements', user?.id],
+    queryFn: () => api.get('/measurements?limit=20') as Promise<BodyMeasurement[]>,
+    enabled: !!user,
+  })
+
+  const startEditMeasurement = (m: BodyMeasurement) => {
+    setEditingMeasurement(m)
+    setMDate(String(m.log_date).slice(0, 10))
+    setMWeight(m.weight_kg != null ? String(m.weight_kg) : '')
+    setMFat(m.fat_pct != null ? String(m.fat_pct) : '')
+    setMMuscle(m.muscle_pct != null ? String(m.muscle_pct) : '')
+    setMVisceral(m.visceral != null ? String(m.visceral) : '')
+    setMNote(m.note ?? '')
+  }
+
+  const handleUpdateMeasurement = async () => {
+    if (!editingMeasurement) return
+    setMSaving(true)
+    try {
+      await api.put(`/measurements/${editingMeasurement.id}`, {
+        log_date: mDate,
+        weight_kg: mWeight ? parseFloat(mWeight) : null,
+        fat_pct: mFat ? parseFloat(mFat) : null,
+        muscle_pct: mMuscle ? parseFloat(mMuscle) : null,
+        visceral: mVisceral ? parseInt(mVisceral) : null,
+        note: mNote || null,
+      })
+      queryClient.invalidateQueries({ queryKey: ['measurements'] })
+      setEditingMeasurement(null)
+    } finally {
+      setMSaving(false)
+    }
+  }
+
+  const handleDeleteMeasurement = async (id: string) => {
+    await api.del(`/measurements/${id}`)
+    queryClient.invalidateQueries({ queryKey: ['measurements'] })
+  }
 
   // Edit form state
   const [name, setName] = useState('')
@@ -407,6 +477,41 @@ export default function ProfilePage() {
           </div>
         </div>
 
+        {/* Body measurements history */}
+        <div className="bg-slate-800 rounded-2xl p-4">
+          <h3 className="text-sm font-semibold text-slate-300 mb-3">Körpermessungen</h3>
+          {measurements.length === 0 ? (
+            <p className="text-xs text-slate-500 text-center py-4">Noch keine Messungen vorhanden</p>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {measurements.map((m) => (
+                <div key={m.id} className="flex items-center justify-between p-3 bg-slate-700 rounded-xl">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-slate-300 mb-1">{fmtDate(m.log_date)}</p>
+                    <div className="flex gap-3 flex-wrap">
+                      {m.weight_kg != null && <span className="text-xs text-slate-400">{fmt(m.weight_kg)} kg</span>}
+                      {m.fat_pct != null && <span className="text-xs text-slate-400">Fett {fmt(m.fat_pct)}%</span>}
+                      {m.muscle_pct != null && <span className="text-xs text-slate-400">Muskeln {fmt(m.muscle_pct)}%</span>}
+                      {m.visceral != null && <span className="text-xs text-slate-400">Viszeral {fmt(m.visceral, 0)}</span>}
+                    </div>
+                    {m.note && <p className="text-xs text-slate-500 mt-0.5 truncate">{m.note}</p>}
+                  </div>
+                  <div className="flex items-center gap-1 ml-2">
+                    <button onClick={() => startEditMeasurement(m)}
+                      className="p-1.5 text-slate-400 hover:text-green-400 rounded-lg hover:bg-green-500/10">
+                      <Pencil size={13} />
+                    </button>
+                    <button onClick={() => handleDeleteMeasurement(m.id)}
+                      className="p-1.5 text-slate-400 hover:text-red-400 rounded-lg hover:bg-red-500/10">
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Sign out */}
         <button
           onClick={signOut}
@@ -416,6 +521,54 @@ export default function ProfilePage() {
           Abmelden
         </button>
       </div>
+
+      {/* Edit measurement modal */}
+      {editingMeasurement && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-800 rounded-2xl w-full max-w-md p-5 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-slate-100">Messung bearbeiten</h3>
+              <button onClick={() => setEditingMeasurement(null)} className="text-slate-400 hover:text-slate-100">
+                <X size={20} />
+              </button>
+            </div>
+            <div>
+              <label className="text-xs text-slate-400 block mb-1">Datum</label>
+              <input type="date" value={mDate} onChange={(e) => setMDate(e.target.value)}
+                className="w-full bg-slate-700 border border-slate-600 rounded-xl px-3 py-2 text-slate-100 text-sm focus:outline-none focus:border-green-500" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { label: 'Gewicht (kg)', val: mWeight, set: setMWeight, step: '0.1' },
+                { label: 'Körperfett (%)', val: mFat, set: setMFat, step: '0.1' },
+                { label: 'Muskelanteil (%)', val: mMuscle, set: setMMuscle, step: '0.1' },
+                { label: 'Viszeralwert', val: mVisceral, set: setMVisceral, step: '1' },
+              ].map(({ label, val, set, step }) => (
+                <div key={label}>
+                  <label className="text-xs text-slate-400 block mb-1">{label}</label>
+                  <input type="number" value={val} onChange={(e) => set(e.target.value)} step={step}
+                    className="w-full bg-slate-700 border border-slate-600 rounded-xl px-3 py-2 text-slate-100 text-sm focus:outline-none focus:border-green-500" />
+                </div>
+              ))}
+            </div>
+            <div>
+              <label className="text-xs text-slate-400 block mb-1">Notiz</label>
+              <textarea value={mNote} onChange={(e) => setMNote(e.target.value)} rows={2}
+                className="w-full bg-slate-700 border border-slate-600 rounded-xl px-3 py-2 text-slate-100 text-sm focus:outline-none focus:border-green-500 resize-none" />
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => setEditingMeasurement(null)}
+                className="flex-1 py-2.5 bg-slate-700 text-slate-300 font-semibold rounded-xl hover:bg-slate-600 text-sm">
+                Abbrechen
+              </button>
+              <button onClick={handleUpdateMeasurement} disabled={mSaving}
+                className="flex-1 py-2.5 bg-green-500 text-white font-semibold rounded-xl hover:bg-green-600 disabled:opacity-50 text-sm">
+                {mSaving ? 'Speichern…' : 'Speichern'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   )
 }

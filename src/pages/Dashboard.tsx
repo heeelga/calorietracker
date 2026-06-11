@@ -9,7 +9,7 @@ import { api } from '../lib/api'
 import { useRewards } from '../hooks/useRewards'
 import { useBadgeNotification } from '../contexts/BadgeNotificationContext'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Flame, Star, Plus, Activity, ChevronDown, ChevronUp } from 'lucide-react'
+import { Flame, Star, Plus, Activity, X } from 'lucide-react'
 import type { MealType } from '../types'
 import { MEAL_TYPE_LABELS } from '../types'
 
@@ -43,14 +43,13 @@ export default function Dashboard() {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
 
-  const [showBodyForm, setShowBodyForm] = useState(false)
+  const [showBodyModal, setShowBodyModal] = useState(false)
   const [bodyWeight, setBodyWeight] = useState('')
   const [bodyFat, setBodyFat] = useState('')
   const [bodyMuscle, setBodyMuscle] = useState('')
   const [bodyVisceral, setBodyVisceral] = useState('')
   const [bodyNote, setBodyNote] = useState('')
   const [bodySaving, setBodySaving] = useState(false)
-  const [bodySaved, setBodySaved] = useState(false)
 
   const { data: lastMeasurements = [] } = useQuery({
     queryKey: ['measurements', user?.id],
@@ -85,16 +84,13 @@ export default function Dashboard() {
         note: bodyNote || null,
       })
       queryClient.invalidateQueries({ queryKey: ['measurements'] })
-      // Award weight_log badge if first time
       if (profile) {
         const earnedKeys = await getEarnedBadges()
         const newBadges = await checkAndAwardBadges(profile, earnedKeys, 0, { weightLogged: true })
         for (const badge of newBadges) showBadge(badge)
       }
-      setBodySaved(true)
       setBodyWeight(''); setBodyFat(''); setBodyMuscle(''); setBodyVisceral(''); setBodyNote('')
-      setShowBodyForm(false)
-      setTimeout(() => setBodySaved(false), 2000)
+      setShowBodyModal(false)
     } finally {
       setBodySaving(false)
     }
@@ -312,30 +308,21 @@ export default function Dashboard() {
 
         {/* Body measurements */}
         <div className="bg-slate-800 rounded-2xl p-4">
-          <button
-            className="w-full flex items-center justify-between"
-            onClick={() => setShowBodyForm((v) => !v)}
-          >
+          <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Activity size={16} className="text-green-400" />
               <h3 className="text-sm font-semibold text-slate-300">Körperwerte</h3>
             </div>
-            <div className="flex items-center gap-2">
-              {lastMeasurements[0]?.weight_kg != null && (
-                <span className="text-xs text-slate-400">
-                  {Number(lastMeasurements[0].weight_kg).toFixed(1)} kg
-                </span>
-              )}
-              {bodySaved
-                ? <span className="text-xs text-green-400 font-medium">Gespeichert!</span>
-                : showBodyForm ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />
-              }
-            </div>
-          </button>
-
-          {/* Last measurement summary */}
-          {!showBodyForm && lastMeasurements[0] && (
-            <div className="grid grid-cols-4 gap-2 mt-3">
+            <button
+              onClick={() => setShowBodyModal(true)}
+              className="flex items-center gap-1 text-xs text-green-400 font-medium hover:text-green-300"
+            >
+              <Plus size={13} />
+              Neue Messung
+            </button>
+          </div>
+          {lastMeasurements[0] ? (
+            <div className="grid grid-cols-4 gap-2">
               {[
                 { label: 'Gewicht', value: lastMeasurements[0].weight_kg, unit: 'kg', decimals: 1 },
                 { label: 'Fett', value: lastMeasurements[0].fat_pct, unit: '%', decimals: 1 },
@@ -351,45 +338,58 @@ export default function Dashboard() {
                 </div>
               ))}
             </div>
-          )}
-
-          {/* Entry form */}
-          {showBodyForm && (
-            <div className="mt-3 flex flex-col gap-3">
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { label: 'Gewicht (kg)', val: bodyWeight, set: setBodyWeight, step: '0.1', placeholder: '82.5' },
-                  { label: 'Körperfett (%)', val: bodyFat, set: setBodyFat, step: '0.1', placeholder: '18.5' },
-                  { label: 'Muskelanteil (%)', val: bodyMuscle, set: setBodyMuscle, step: '0.1', placeholder: '42.0' },
-                  { label: 'Viszeralwert', val: bodyVisceral, set: setBodyVisceral, step: '1', placeholder: '8' },
-                ].map(({ label, val, set, step, placeholder }) => (
-                  <div key={label}>
-                    <label className="text-[10px] text-slate-400 block mb-1">{label}</label>
-                    <input
-                      type="number" value={val} onChange={(e) => set(e.target.value)}
-                      step={step} placeholder={placeholder}
-                      className="w-full bg-slate-700 border border-slate-600 rounded-xl px-3 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-green-500 text-sm"
-                    />
-                  </div>
-                ))}
-              </div>
-              <textarea
-                value={bodyNote} onChange={(e) => setBodyNote(e.target.value)}
-                placeholder="Notiz (optional)"
-                rows={2}
-                className="w-full bg-slate-700 border border-slate-600 rounded-xl px-3 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-green-500 text-sm resize-none"
-              />
-              <button
-                onClick={handleBodySave}
-                disabled={bodySaving}
-                className="w-full py-2.5 bg-green-500 text-white font-semibold rounded-xl hover:bg-green-600 disabled:opacity-50 transition-colors text-sm"
-              >
-                {bodySaving ? 'Speichern…' : 'Messung speichern'}
-              </button>
-            </div>
+          ) : (
+            <p className="text-xs text-slate-500 text-center py-2">Noch keine Messung eingetragen</p>
           )}
         </div>
       </div>
+
+      {/* New measurement modal */}
+      {showBodyModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-800 rounded-2xl w-full max-w-md p-5 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-slate-100">Neue Messung</h3>
+              <button onClick={() => setShowBodyModal(false)} className="text-slate-400 hover:text-slate-100">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { label: 'Gewicht (kg)', val: bodyWeight, set: setBodyWeight, step: '0.1', placeholder: '82.5' },
+                { label: 'Körperfett (%)', val: bodyFat, set: setBodyFat, step: '0.1', placeholder: '18.5' },
+                { label: 'Muskelanteil (%)', val: bodyMuscle, set: setBodyMuscle, step: '0.1', placeholder: '42.0' },
+                { label: 'Viszeralwert', val: bodyVisceral, set: setBodyVisceral, step: '1', placeholder: '8' },
+              ].map(({ label, val, set, step, placeholder }) => (
+                <div key={label}>
+                  <label className="text-[10px] text-slate-400 block mb-1">{label}</label>
+                  <input
+                    type="number" value={val} onChange={(e) => set(e.target.value)}
+                    step={step} placeholder={placeholder}
+                    className="w-full bg-slate-700 border border-slate-600 rounded-xl px-3 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-green-500 text-sm"
+                  />
+                </div>
+              ))}
+            </div>
+            <textarea
+              value={bodyNote} onChange={(e) => setBodyNote(e.target.value)}
+              placeholder="Notiz (optional)"
+              rows={2}
+              className="w-full bg-slate-700 border border-slate-600 rounded-xl px-3 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-green-500 text-sm resize-none"
+            />
+            <div className="flex gap-2">
+              <button onClick={() => setShowBodyModal(false)}
+                className="flex-1 py-2.5 bg-slate-700 text-slate-300 font-semibold rounded-xl hover:bg-slate-600 text-sm">
+                Abbrechen
+              </button>
+              <button onClick={handleBodySave} disabled={bodySaving}
+                className="flex-1 py-2.5 bg-green-500 text-white font-semibold rounded-xl hover:bg-green-600 disabled:opacity-50 text-sm">
+                {bodySaving ? 'Speichern…' : 'Speichern'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   )
 }
