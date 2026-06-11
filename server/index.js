@@ -90,8 +90,8 @@ async function initDBWithRetry(maxRetries = 10, delayMs = 3000) {
 
 const PORT = process.env.PORT || 3001
 
-// Start server immediately, init DB in background with retry
-app.listen(PORT, () => {
-  console.log(`Server läuft auf Port ${PORT}`)
-  initDBWithRetry().catch(() => process.exit(1))
-})
+initDBWithRetry().then(() => {
+  app.listen(PORT, () => {
+    console.log(`Server läuft auf Port ${PORT}`)
+  })
+}).catch(() => process.exit(1))
