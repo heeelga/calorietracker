@@ -22,6 +22,9 @@ function stripPassword(profile) {
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
   try {
+    if (process.env.REGISTRATION_ENABLED === 'false') {
+      return res.status(403).json({ error: 'Registrierung ist deaktiviert. Bitte einen Administrator kontaktieren.' })
+    }
     const { name, email, password } = req.body
     if (!email || !password) return res.status(400).json({ error: 'E-Mail und Passwort erforderlich' })
 
