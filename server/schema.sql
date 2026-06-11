@@ -137,4 +137,3 @@ CREATE TABLE IF NOT EXISTS body_measurements (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_user_date (user_id, log_date)
 );
-);
