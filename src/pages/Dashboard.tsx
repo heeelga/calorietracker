@@ -6,6 +6,8 @@ import { useDailyLog } from '../hooks/useDailyLog'
 import MacroRing from '../components/MacroRing'
 import Layout from '../components/Layout'
 import { api } from '../lib/api'
+import { useRewards } from '../hooks/useRewards'
+import { useBadgeNotification } from '../contexts/BadgeNotificationContext'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Flame, Star, Plus, Activity, ChevronDown, ChevronUp } from 'lucide-react'
 import type { MealType } from '../types'
@@ -36,6 +38,8 @@ export default function Dashboard() {
   const { user } = useAuth()
   const { profile } = useProfile(user?.id)
   const { entries, totals } = useDailyLog(user?.id, today)
+  const { checkAndAwardBadges, getEarnedBadges } = useRewards(user?.id)
+  const { showBadge } = useBadgeNotification()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
 
@@ -81,6 +85,12 @@ export default function Dashboard() {
         note: bodyNote || null,
       })
       queryClient.invalidateQueries({ queryKey: ['measurements'] })
+      // Award weight_log badge if first time
+      if (profile) {
+        const earnedKeys = await getEarnedBadges()
+        const newBadges = await checkAndAwardBadges(profile, earnedKeys, 0, { weightLogged: true })
+        for (const badge of newBadges) showBadge(badge)
+      }
       setBodySaved(true)
       setBodyWeight(''); setBodyFat(''); setBodyMuscle(''); setBodyVisceral(''); setBodyNote('')
       setShowBodyForm(false)

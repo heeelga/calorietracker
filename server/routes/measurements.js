@@ -60,6 +60,32 @@ router.post('/', requireAuth, async (req, res) => {
   }
 })
 
+// PUT /api/measurements/:id
+router.put('/:id', requireAuth, async (req, res) => {
+  try {
+    const { log_date, weight_kg, fat_pct, muscle_pct, visceral, note } = req.body
+    await pool.query(
+      `UPDATE body_measurements SET log_date=?, weight_kg=?, fat_pct=?, muscle_pct=?, visceral=?, note=?
+       WHERE id = ? AND user_id = ?`,
+      [log_date, weight_kg ?? null, fat_pct ?? null, muscle_pct ?? null,
+       visceral ?? null, note || null, req.params.id, req.user.id]
+    )
+    // Mirror updated weight into weight_log
+    if (weight_kg != null && log_date) {
+      await pool.query(
+        `INSERT INTO weight_log (id, user_id, log_date, weight_kg, created_at) VALUES (?, ?, ?, ?, NOW())
+         ON DUPLICATE KEY UPDATE weight_kg = VALUES(weight_kg)`,
+        [uuidv4(), req.user.id, log_date, weight_kg]
+      )
+    }
+    const [rows] = await pool.query('SELECT * FROM body_measurements WHERE id = ?', [req.params.id])
+    res.json(rows[0])
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Serverfehler' })
+  }
+})
+
 // DELETE /api/measurements/:id
 router.delete('/:id', requireAuth, async (req, res) => {
   try {

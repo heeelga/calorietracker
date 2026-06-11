@@ -30,6 +30,7 @@ export interface Profile {
   password_hash: string | null
   is_admin: boolean
   is_banned: boolean
+  avatar_url: string | null
   created_at: string
 }
 

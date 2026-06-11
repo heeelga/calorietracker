@@ -77,7 +77,8 @@ export function useRewards(userId: string | undefined) {
   const checkAndAwardBadges = useCallback(async (
     profile: Profile,
     earnedBadgeKeys: string[],
-    totalLogCount: number
+    totalLogCount: number,
+    extras?: { weightLogged?: boolean; barcodeScanned?: boolean }
   ): Promise<BadgeDefinition[]> => {
     if (!userId) return []
 
@@ -97,8 +98,11 @@ export function useRewards(userId: string | undefined) {
     checkBadge('level_5', (profile.level ?? 1) >= 5)
     checkBadge('level_10', (profile.level ?? 1) >= 10)
     checkBadge('level_20', (profile.level ?? 1) >= 20)
+    checkBadge('foods_10', totalLogCount >= 10)
     checkBadge('foods_50', totalLogCount >= 50)
     checkBadge('foods_100', totalLogCount >= 100)
+    checkBadge('weight_log', !!extras?.weightLogged)
+    checkBadge('barcode_scan', !!extras?.barcodeScanned)
 
     for (const key of newBadgeKeys) {
       await api.post('/badges', { badge_key: key })

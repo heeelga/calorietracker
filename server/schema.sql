@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   onboarding_done BOOLEAN DEFAULT FALSE,
   is_admin BOOLEAN DEFAULT FALSE,
   is_banned BOOLEAN DEFAULT FALSE,
+  avatar_url MEDIUMTEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -60,6 +61,7 @@ CREATE TABLE IF NOT EXISTS meals (
   total_protein_g DECIMAL(8,2) DEFAULT 0,
   total_carbs_g DECIMAL(8,2) DEFAULT 0,
   total_fat_g DECIMAL(8,2) DEFAULT 0,
+  image_url MEDIUMTEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_user (user_id)
 );

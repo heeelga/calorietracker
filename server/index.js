@@ -61,9 +61,14 @@ async function initDB() {
     await pool.query(stmt)
   }
   // Migrations for existing databases
-  try {
-    await pool.query('ALTER TABLE favorites ADD COLUMN is_favorite BOOLEAN DEFAULT FALSE')
-  } catch (_) { /* column already exists */ }
+  const migrations = [
+    'ALTER TABLE favorites ADD COLUMN is_favorite BOOLEAN DEFAULT FALSE',
+    'ALTER TABLE profiles ADD COLUMN avatar_url MEDIUMTEXT',
+    'ALTER TABLE meals ADD COLUMN image_url MEDIUMTEXT',
+  ]
+  for (const sql of migrations) {
+    try { await pool.query(sql) } catch (_) { /* column already exists */ }
+  }
   console.log('Datenbankschema initialisiert')
 }
 

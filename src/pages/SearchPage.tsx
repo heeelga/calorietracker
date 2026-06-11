@@ -33,6 +33,7 @@ export default function SearchPage() {
 
   const [tab, setTab] = useState<Tab>('search')
   const [selectedFood, setSelectedFood] = useState<FoodItem | null>(null)
+  const [scannedFood, setScannedFood] = useState(false)
   const [showScanner, setShowScanner] = useState(false)
   const [scanLoading, setScanLoading] = useState(false)
   const [scanError, setScanError] = useState<string | null>(null)
@@ -60,6 +61,7 @@ export default function SearchPage() {
       const food = await getFoodByBarcode(barcode)
       if (food) {
         setSelectedFood(food)
+        setScannedFood(true)
         setTab('search')
       } else {
         setScanError(`Produkt mit Barcode ${barcode} nicht gefunden.`)
@@ -125,7 +127,8 @@ export default function SearchPage() {
         const count = countData.count
 
         const earnedKeys = await getEarnedBadges()
-        const newBadges = await checkAndAwardBadges(updatedProfile, earnedKeys, count)
+        const newBadges = await checkAndAwardBadges(updatedProfile, earnedKeys, count, { barcodeScanned: scannedFood })
+        setScannedFood(false)
         for (const badge of newBadges) {
           showBadge(badge)
         }

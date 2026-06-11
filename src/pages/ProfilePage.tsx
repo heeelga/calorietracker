@@ -3,8 +3,9 @@ import { useAuth } from '../hooks/useAuth'
 import { useProfile } from '../hooks/useProfile'
 import { calculateTargets } from '../lib/nutrition'
 import { api, getToken } from '../lib/api'
+import { resizeImageToBase64 } from '../lib/imageUtils'
 import Layout from '../components/Layout'
-import { LogOut, Save, RefreshCw, Flame, Star, Download, Upload } from 'lucide-react'
+import { LogOut, Save, RefreshCw, Flame, Star, Download, Upload, Camera } from 'lucide-react'
 
 const ACTIVITY_LABELS: Record<string, string> = {
   sedentary: 'Sitzend',
@@ -30,7 +31,9 @@ export default function ProfilePage() {
   const [exportLoading, setExportLoading] = useState(false)
   const [importLoading, setImportLoading] = useState(false)
   const [importResult, setImportResult] = useState<string | null>(null)
+  const [avatarLoading, setAvatarLoading] = useState(false)
   const importInputRef = useRef<HTMLInputElement>(null)
+  const avatarInputRef = useRef<HTMLInputElement>(null)
 
   // Edit form state
   const [name, setName] = useState('')
@@ -121,6 +124,21 @@ export default function ProfilePage() {
     }
   }
 
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setAvatarLoading(true)
+    try {
+      const base64 = await resizeImageToBase64(file, 200, 0.85)
+      await updateProfile({ avatar_url: base64 })
+    } catch {
+      setError('Profilbild konnte nicht gespeichert werden')
+    } finally {
+      setAvatarLoading(false)
+      if (avatarInputRef.current) avatarInputRef.current.value = ''
+    }
+  }
+
   const handleRecalculate = async () => {
     if (!profile) return
     setSaving(true)
@@ -159,8 +177,30 @@ export default function ProfilePage() {
       <div className="flex flex-col gap-4 px-4 py-4">
         {/* Avatar + name + level */}
         <div className="bg-slate-800 rounded-2xl p-5 flex items-center gap-4">
-          <div className="w-16 h-16 bg-green-500 rounded-2xl flex items-center justify-center text-white text-2xl font-bold flex-shrink-0">
-            {initials}
+          <div className="relative flex-shrink-0">
+            {profile?.avatar_url ? (
+              <img
+                src={profile.avatar_url}
+                alt="Profilbild"
+                className="w-16 h-16 rounded-2xl object-cover"
+              />
+            ) : (
+              <div className="w-16 h-16 bg-green-500 rounded-2xl flex items-center justify-center text-white text-2xl font-bold">
+                {initials}
+              </div>
+            )}
+            <button
+              onClick={() => avatarInputRef.current?.click()}
+              disabled={avatarLoading}
+              className="absolute -bottom-1.5 -right-1.5 w-6 h-6 bg-slate-700 border border-slate-600 rounded-full flex items-center justify-center hover:bg-slate-600 transition-colors"
+            >
+              {avatarLoading ? (
+                <div className="w-3 h-3 border border-green-400 border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Camera size={11} className="text-slate-300" />
+              )}
+            </button>
+            <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
           </div>
           <div className="flex-1 min-w-0">
             <h2 className="text-xl font-bold text-slate-100 truncate">{profile?.name ?? 'Benutzer'}</h2>

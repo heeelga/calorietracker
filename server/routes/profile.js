@@ -9,13 +9,16 @@ const ALLOWED_FIELDS = [
   'activity_level', 'goal', 'target_weight_kg', 'calorie_target',
   'protein_target_g', 'carbs_target_g', 'fat_target_g',
   'xp', 'level', 'streak_days', 'last_log_date', 'onboarding_done',
+  'avatar_url',
 ]
+
+const PROFILE_SELECT = 'id, name, email, height_cm, weight_kg, birth_year, gender, activity_level, goal, target_weight_kg, calorie_target, protein_target_g, carbs_target_g, fat_target_g, xp, level, streak_days, last_log_date, onboarding_done, is_admin, is_banned, avatar_url, created_at'
 
 // GET /api/profile
 router.get('/', requireAuth, async (req, res) => {
   try {
     const [rows] = await pool.query(
-      'SELECT id, name, email, height_cm, weight_kg, birth_year, gender, activity_level, goal, target_weight_kg, calorie_target, protein_target_g, carbs_target_g, fat_target_g, xp, level, streak_days, last_log_date, onboarding_done, is_admin, is_banned, created_at FROM profiles WHERE id = ?',
+      `SELECT ${PROFILE_SELECT} FROM profiles WHERE id = ?`,
       [req.user.id]
     )
     if (rows.length === 0) return res.status(404).json({ error: 'Profil nicht gefunden' })
@@ -44,7 +47,7 @@ router.put('/', requireAuth, async (req, res) => {
     await pool.query(`UPDATE profiles SET ${setClauses} WHERE id = ?`, values)
 
     const [rows] = await pool.query(
-      'SELECT id, name, email, height_cm, weight_kg, birth_year, gender, activity_level, goal, target_weight_kg, calorie_target, protein_target_g, carbs_target_g, fat_target_g, xp, level, streak_days, last_log_date, onboarding_done, is_admin, is_banned, created_at FROM profiles WHERE id = ?',
+      `SELECT ${PROFILE_SELECT} FROM profiles WHERE id = ?`,
       [req.user.id]
     )
     res.json(rows[0])

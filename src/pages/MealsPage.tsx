@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useDailyLog } from '../hooks/useDailyLog'
@@ -8,10 +8,11 @@ import BarcodeScanner from '../components/BarcodeScanner'
 import PortionSelector from '../components/PortionSelector'
 import { api } from '../lib/api'
 import { getFoodByBarcode } from '../lib/openfoodfacts'
+import { resizeImageToBase64 } from '../lib/imageUtils'
 import type { Meal, MealIngredient, MealType, FoodItem, MealShare } from '../types'
 import { MEAL_TYPE_LABELS } from '../types'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, ChevronRight, Trash2, UtensilsCrossed, X, Share2, User, Camera, Loader2 } from 'lucide-react'
+import { Plus, ChevronRight, Trash2, UtensilsCrossed, X, Share2, User, Camera, Loader2, ImagePlus } from 'lucide-react'
 import { calculateNutrition } from '../lib/nutrition'
 
 const today = new Date().toISOString().split('T')[0]
@@ -38,6 +39,9 @@ export default function MealsPage() {
   const [showIngScanner, setShowIngScanner] = useState(false)
   const [ingScanning, setIngScanning] = useState(false)
   const [ingScanError, setIngScanError] = useState<string | null>(null)
+  const [mealImageUrl, setMealImageUrl] = useState<string | null>(null)
+  const [imageLoading, setImageLoading] = useState(false)
+  const mealImageRef = useRef<HTMLInputElement>(null)
 
   // Share modal state
   const [shareModalMeal, setShareModalMeal] = useState<Meal | null>(null)
@@ -163,6 +167,19 @@ export default function MealsPage() {
     { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0, fiber_g: 0 }
   )
 
+  const handleMealImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImageLoading(true)
+    try {
+      const base64 = await resizeImageToBase64(file, 400, 0.82)
+      setMealImageUrl(base64)
+    } finally {
+      setImageLoading(false)
+      if (mealImageRef.current) mealImageRef.current.value = ''
+    }
+  }
+
   const handleSaveMeal = async () => {
     if (!user || !newMealName.trim() || pendingIngredients.length === 0) return
     setSaving(true)
@@ -173,6 +190,7 @@ export default function MealsPage() {
         total_protein_g: totalNutrition.protein_g,
         total_carbs_g: totalNutrition.carbs_g,
         total_fat_g: totalNutrition.fat_g,
+        image_url: mealImageUrl ?? null,
         ingredients: pendingIngredients,
       })
 
@@ -180,6 +198,7 @@ export default function MealsPage() {
       setNewMealName('')
       setNewMealDesc('')
       setPendingIngredients([])
+      setMealImageUrl(null)
       setView('list')
     } finally {
       setSaving(false)
@@ -246,9 +265,13 @@ export default function MealsPage() {
                   onClick={() => { setSelectedMeal(meal); setView('detail') }}
                   className="flex items-center gap-3 p-4 bg-slate-800 rounded-2xl hover:bg-slate-700 transition-colors text-left"
                 >
-                  <div className="w-10 h-10 bg-green-500/10 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <UtensilsCrossed size={20} className="text-green-400" />
-                  </div>
+                  {meal.image_url ? (
+                    <img src={meal.image_url} alt={meal.name} className="w-10 h-10 rounded-xl object-cover flex-shrink-0" />
+                  ) : (
+                    <div className="w-10 h-10 bg-green-500/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <UtensilsCrossed size={20} className="text-green-400" />
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-slate-100">{meal.name}</p>
                     <p className="text-xs text-slate-400">
@@ -306,6 +329,31 @@ export default function MealsPage() {
               placeholder="Beschreibung (optional)"
               className="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-green-500"
             />
+
+            {/* Recipe image */}
+            <div>
+              {mealImageUrl ? (
+                <div className="relative">
+                  <img src={mealImageUrl} alt="Rezeptbild" className="w-full h-40 object-cover rounded-xl" />
+                  <button
+                    onClick={() => setMealImageUrl(null)}
+                    className="absolute top-2 right-2 w-7 h-7 bg-black/60 rounded-full flex items-center justify-center text-white hover:bg-black/80"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => mealImageRef.current?.click()}
+                  disabled={imageLoading}
+                  className="flex items-center justify-center gap-2 w-full py-2.5 bg-slate-700 border border-dashed border-slate-600 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-600 text-sm transition-colors"
+                >
+                  {imageLoading ? <Loader2 size={15} className="animate-spin" /> : <ImagePlus size={15} />}
+                  {imageLoading ? 'Bild wird geladen…' : 'Rezeptbild hinzufügen (optional)'}
+                </button>
+              )}
+              <input ref={mealImageRef} type="file" accept="image/*" className="hidden" onChange={handleMealImageChange} />
+            </div>
 
             {/* Ingredients list */}
             {pendingIngredients.length > 0 && (

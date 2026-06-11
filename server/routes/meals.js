@@ -84,16 +84,16 @@ router.get('/', requireAuth, async (req, res) => {
 // POST /api/meals
 router.post('/', requireAuth, async (req, res) => {
   try {
-    const { name, ingredients = [], total_calories, total_protein_g, total_carbs_g, total_fat_g } = req.body
+    const { name, ingredients = [], total_calories, total_protein_g, total_carbs_g, total_fat_g, image_url } = req.body
     if (!name) return res.status(400).json({ error: 'Name erforderlich' })
 
     const mealId = uuidv4()
     const now = new Date().toISOString().slice(0, 19).replace('T', ' ')
 
     await pool.query(
-      `INSERT INTO meals (id, user_id, name, total_calories, total_protein_g, total_carbs_g, total_fat_g, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [mealId, req.user.id, name, total_calories || 0, total_protein_g || 0, total_carbs_g || 0, total_fat_g || 0, now]
+      `INSERT INTO meals (id, user_id, name, total_calories, total_protein_g, total_carbs_g, total_fat_g, image_url, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [mealId, req.user.id, name, total_calories || 0, total_protein_g || 0, total_carbs_g || 0, total_fat_g || 0, image_url || null, now]
     )
 
     for (const ing of ingredients) {

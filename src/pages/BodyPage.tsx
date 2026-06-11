@@ -4,7 +4,7 @@ import { useProfile } from '../hooks/useProfile'
 import { api } from '../lib/api'
 import Layout from '../components/Layout'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Trash2, ChevronDown, ChevronUp, StickyNote } from 'lucide-react'
+import { Plus, Trash2, ChevronDown, ChevronUp, StickyNote, Pencil, X } from 'lucide-react'
 
 interface BodyMeasurement {
   id: string
@@ -62,6 +62,7 @@ export default function BodyPage() {
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [editingEntry, setEditingEntry] = useState<BodyMeasurement | null>(null)
 
   const [date, setDate] = useState(today)
   const [weight, setWeight] = useState('')
@@ -106,6 +107,36 @@ export default function BodyPage() {
   const handleDelete = async (id: string) => {
     await api.del(`/measurements/${id}`)
     queryClient.invalidateQueries({ queryKey: ['measurements'] })
+  }
+
+  const startEdit = (entry: BodyMeasurement) => {
+    setEditingEntry(entry)
+    setDate(String(entry.log_date).slice(0, 10))
+    setWeight(entry.weight_kg != null ? String(entry.weight_kg) : '')
+    setFat(entry.fat_pct != null ? String(entry.fat_pct) : '')
+    setMuscle(entry.muscle_pct != null ? String(entry.muscle_pct) : '')
+    setVisceral(entry.visceral != null ? String(entry.visceral) : '')
+    setNote(entry.note ?? '')
+  }
+
+  const handleUpdate = async () => {
+    if (!editingEntry) return
+    setSaving(true)
+    try {
+      await api.put(`/measurements/${editingEntry.id}`, {
+        log_date: date,
+        weight_kg: weight ? parseFloat(weight) : null,
+        fat_pct: fat ? parseFloat(fat) : null,
+        muscle_pct: muscle ? parseFloat(muscle) : null,
+        visceral: visceral ? parseInt(visceral) : null,
+        note: note || null,
+      })
+      queryClient.invalidateQueries({ queryKey: ['measurements'] })
+      setEditingEntry(null)
+      setWeight(''); setFat(''); setMuscle(''); setVisceral(''); setNote(''); setDate(today)
+    } finally {
+      setSaving(false)
+    }
   }
 
   const goal = profile?.goal ?? null
@@ -233,6 +264,12 @@ export default function BodyPage() {
                         {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                       </button>
                       <button
+                        onClick={() => startEdit(entry)}
+                        className="p-1.5 text-slate-400 hover:text-green-400 rounded-lg hover:bg-green-500/10"
+                      >
+                        <Pencil size={14} />
+                      </button>
+                      <button
                         onClick={() => handleDelete(entry.id)}
                         className="p-1.5 text-slate-500 hover:text-red-400 rounded-lg hover:bg-red-500/10"
                       >
@@ -289,6 +326,65 @@ export default function BodyPage() {
           </div>
         )}
       </div>
+
+      {/* Edit modal */}
+      {editingEntry && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-800 rounded-2xl w-full max-w-md p-5 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-slate-100">Messung bearbeiten</h3>
+              <button onClick={() => setEditingEntry(null)} className="text-slate-400 hover:text-slate-100">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div>
+              <label className="text-xs text-slate-400 block mb-1">Datum</label>
+              <input
+                type="date" value={date} onChange={(e) => setDate(e.target.value)}
+                className="w-full bg-slate-700 border border-slate-600 rounded-xl px-3 py-2 text-slate-100 text-sm focus:outline-none focus:border-green-500"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">Gewicht (kg)</label>
+                <input type="number" value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="z.B. 82.5" step="0.1"
+                  className="w-full bg-slate-700 border border-slate-600 rounded-xl px-3 py-2 text-slate-100 text-sm focus:outline-none focus:border-green-500" />
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">Körperfett (%)</label>
+                <input type="number" value={fat} onChange={(e) => setFat(e.target.value)} placeholder="z.B. 18.5" step="0.1"
+                  className="w-full bg-slate-700 border border-slate-600 rounded-xl px-3 py-2 text-slate-100 text-sm focus:outline-none focus:border-green-500" />
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">Muskelanteil (%)</label>
+                <input type="number" value={muscle} onChange={(e) => setMuscle(e.target.value)} placeholder="z.B. 42.0" step="0.1"
+                  className="w-full bg-slate-700 border border-slate-600 rounded-xl px-3 py-2 text-slate-100 text-sm focus:outline-none focus:border-green-500" />
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">Viszeralwert</label>
+                <input type="number" value={visceral} onChange={(e) => setVisceral(e.target.value)} placeholder="z.B. 8" step="1"
+                  className="w-full bg-slate-700 border border-slate-600 rounded-xl px-3 py-2 text-slate-100 text-sm focus:outline-none focus:border-green-500" />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs text-slate-400 block mb-1">Notiz (optional)</label>
+              <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2}
+                className="w-full bg-slate-700 border border-slate-600 rounded-xl px-3 py-2 text-slate-100 text-sm focus:outline-none focus:border-green-500 resize-none" />
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => setEditingEntry(null)}
+                className="flex-1 py-2.5 bg-slate-700 text-slate-300 font-semibold rounded-xl hover:bg-slate-600 text-sm">
+                Abbrechen
+              </button>
+              <button onClick={handleUpdate} disabled={saving}
+                className="flex-1 py-2.5 bg-green-500 text-white font-semibold rounded-xl hover:bg-green-600 disabled:opacity-50 text-sm">
+                {saving ? 'Speichern…' : 'Speichern'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   )
 }
