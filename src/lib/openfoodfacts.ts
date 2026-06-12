@@ -104,6 +104,7 @@ export async function searchFoods(query: string): Promise<FoodItem[]> {
     action: 'process',
     json: '1',
     page_size: '30',
+    lc: 'de',
     fields: 'id,_id,code,product_name,product_name_de,brands,nutriments,image_front_small_url,quantity',
   })
 

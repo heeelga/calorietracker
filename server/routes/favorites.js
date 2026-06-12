@@ -25,18 +25,27 @@ router.post('/', requireAuth, async (req, res) => {
     const {
       food_name, food_brand, food_id, barcode,
       calories_per_100g, protein_per_100g, carbs_per_100g, fat_per_100g, fiber_per_100g,
-      image_url, package_weight_g,
+      image_url, package_weight_g, last_amount_grams,
     } = req.body
 
     if (!food_name) return res.status(400).json({ error: 'food_name erforderlich' })
 
-    // Check for duplicate food_id if provided
+    // Check for duplicate food_id — if exists, update last_amount_grams and return
     if (food_id) {
       const [existing] = await pool.query(
         'SELECT id FROM favorites WHERE user_id = ? AND food_id = ?',
         [req.user.id, food_id]
       )
-      if (existing.length > 0) return res.json(existing[0])
+      if (existing.length > 0) {
+        if (last_amount_grams != null) {
+          await pool.query(
+            'UPDATE favorites SET last_amount_grams = ? WHERE id = ?',
+            [last_amount_grams, existing[0].id]
+          )
+        }
+        const [updated] = await pool.query('SELECT * FROM favorites WHERE id = ?', [existing[0].id])
+        return res.json(updated[0])
+      }
     }
 
     const id = uuidv4()
@@ -45,11 +54,11 @@ router.post('/', requireAuth, async (req, res) => {
     await pool.query(
       `INSERT INTO favorites (id, user_id, food_name, food_brand, food_id, barcode,
         calories_per_100g, protein_per_100g, carbs_per_100g, fat_per_100g, fiber_per_100g,
-        image_url, package_weight_g, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        image_url, package_weight_g, last_amount_grams, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [id, req.user.id, food_name, food_brand || null, food_id || null, barcode || null,
        calories_per_100g || 0, protein_per_100g || 0, carbs_per_100g || 0, fat_per_100g || 0, fiber_per_100g || 0,
-       image_url || null, package_weight_g || null, now]
+       image_url || null, package_weight_g || null, last_amount_grams || null, now]
     )
 
     const [rows] = await pool.query('SELECT * FROM favorites WHERE id = ?', [id])

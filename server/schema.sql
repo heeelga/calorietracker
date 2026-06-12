@@ -110,6 +110,7 @@ CREATE TABLE IF NOT EXISTS favorites (
   image_url TEXT,
   package_weight_g DECIMAL(8,2),
   is_favorite BOOLEAN DEFAULT FALSE,
+  last_amount_grams DECIMAL(8,2),
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_user (user_id)
 );

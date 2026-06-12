@@ -96,6 +96,7 @@ async function initDB() {
     'ALTER TABLE favorites ADD COLUMN is_favorite BOOLEAN DEFAULT FALSE',
     'ALTER TABLE profiles ADD COLUMN avatar_url MEDIUMTEXT',
     'ALTER TABLE meals ADD COLUMN image_url MEDIUMTEXT',
+    'ALTER TABLE favorites ADD COLUMN last_amount_grams DECIMAL(8,2)',
   ]
   for (const sql of migrations) {
     try { await pool.query(sql) } catch (_) { /* column already exists */ }

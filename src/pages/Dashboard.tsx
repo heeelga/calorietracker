@@ -10,7 +10,7 @@ import { calculateTargets } from '../lib/nutrition'
 import { useRewards } from '../hooks/useRewards'
 import { useBadgeNotification } from '../contexts/BadgeNotificationContext'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Flame, Star, Plus, Activity, X } from 'lucide-react'
+import { Flame, Star, Plus, Activity, X, ChevronLeft, ChevronRight } from 'lucide-react'
 import type { MealType } from '../types'
 import { MEAL_TYPE_LABELS } from '../types'
 
@@ -24,7 +24,13 @@ interface BodyMeasurement {
   note: string | null
 }
 
-const today = new Date().toISOString().split('T')[0]
+function getToday() { return new Date().toISOString().split('T')[0] }
+
+function offsetDate(base: string, days: number): string {
+  const d = new Date(base)
+  d.setDate(d.getDate() + days)
+  return d.toISOString().split('T')[0]
+}
 
 const MEAL_TYPES: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack']
 
@@ -38,7 +44,9 @@ const MEAL_EMOJIS: Record<MealType, string> = {
 export default function Dashboard() {
   const { user } = useAuth()
   const { profile } = useProfile(user?.id)
-  const { entries, totals } = useDailyLog(user?.id, today)
+  const [selectedDate, setSelectedDate] = useState(getToday)
+  const isToday = selectedDate === getToday()
+  const { entries, totals } = useDailyLog(user?.id, selectedDate)
   const { checkAndAwardBadges, getEarnedBadges } = useRewards(user?.id)
   const { showBadge } = useBadgeNotification()
   const queryClient = useQueryClient()
@@ -65,11 +73,9 @@ export default function Dashboard() {
     return 'Guten Abend'
   }
 
-  const dateLabel = new Date().toLocaleDateString('de-DE', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-  })
+  const dateLabel = isToday
+    ? 'Heute, ' + new Date().toLocaleDateString('de-DE', { day: 'numeric', month: 'long' })
+    : new Date(selectedDate).toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
 
   const handleBodySave = async () => {
     if (!user) return
@@ -77,7 +83,7 @@ export default function Dashboard() {
     setBodySaving(true)
     try {
       await api.post('/measurements', {
-        log_date: today,
+        log_date: getToday(),
         weight_kg: bodyWeight ? parseFloat(bodyWeight) : null,
         fat_pct: bodyFat ? parseFloat(bodyFat) : null,
         muscle_pct: bodyMuscle ? parseFloat(bodyMuscle) : null,
@@ -125,9 +131,8 @@ export default function Dashboard() {
         {/* Header greeting */}
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-slate-400 text-sm">{dateLabel}</p>
             <h2 className="text-xl font-bold text-slate-100">
-              {greeting()}{profile?.name ? `, ${profile.name}` : ''}!
+              {isToday ? `${greeting()}${profile?.name ? `, ${profile.name}` : ''}!` : (profile?.name ?? 'Tagebuch')}
             </h2>
           </div>
           {profile && (
@@ -142,6 +147,31 @@ export default function Dashboard() {
               </div>
             </div>
           )}
+        </div>
+
+        {/* Date navigation */}
+        <div className="flex items-center justify-between bg-slate-800 rounded-2xl px-3 py-2.5">
+          <button
+            onClick={() => setSelectedDate(d => offsetDate(d, -1))}
+            className="p-1.5 text-slate-400 hover:text-slate-100 hover:bg-slate-700 rounded-lg transition-colors"
+          >
+            <ChevronLeft size={18} />
+          </button>
+          <button
+            onClick={() => setSelectedDate(getToday())}
+            className="flex-1 text-center"
+          >
+            <span className={`text-sm font-medium ${isToday ? 'text-green-400' : 'text-slate-200'}`}>
+              {dateLabel}
+            </span>
+          </button>
+          <button
+            onClick={() => setSelectedDate(d => offsetDate(d, 1))}
+            disabled={isToday}
+            className="p-1.5 text-slate-400 hover:text-slate-100 hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            <ChevronRight size={18} />
+          </button>
         </div>
 
         {/* Macro Ring */}
@@ -288,7 +318,7 @@ export default function Dashboard() {
               return (
                 <button
                   key={meal}
-                  onClick={() => navigate(`/search?meal=${meal}`)}
+                  onClick={() => navigate(`/search?meal=${meal}&date=${selectedDate}`)}
                   className="flex items-center gap-2 p-3 bg-slate-700 rounded-xl hover:bg-slate-600 transition-colors text-left"
                 >
                   <span className="text-xl">{MEAL_EMOJIS[meal]}</span>

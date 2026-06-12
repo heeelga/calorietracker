@@ -8,20 +8,21 @@ interface PortionSelectorProps {
   food: FoodItem
   onConfirm: (amountGrams: number, portionLabel: string) => void
   onCancel: () => void
+  defaultGrams?: number
 }
 
 type InputMode = 'grams' | 'pieces' | 'package'
 
-export default function PortionSelector({ food, onConfirm, onCancel }: PortionSelectorProps) {
+export default function PortionSelector({ food, onConfirm, onCancel, defaultGrams }: PortionSelectorProps) {
   const portionData = detectPortionType(food.name)
   const hasPackage = !!food.package_weight_g && !!food.barcode
 
-  // Default mode
-  const defaultMode: InputMode = portionData ? 'pieces' : hasPackage ? 'package' : 'grams'
+  // If a previous amount is known, always start in grams mode with that value pre-filled
+  const defaultMode: InputMode = defaultGrams ? 'grams' : portionData ? 'pieces' : hasPackage ? 'package' : 'grams'
   const [mode, setMode] = useState<InputMode>(defaultMode)
 
   // Gram mode
-  const [gramValue, setGramValue] = useState('100')
+  const [gramValue, setGramValue] = useState(defaultGrams ? String(defaultGrams) : '100')
 
   // Pieces mode
   const [quantity, setQuantity] = useState(1)

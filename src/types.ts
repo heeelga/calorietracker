@@ -124,6 +124,7 @@ export interface FavoriteFood {
   image_url: string | null
   package_weight_g: number | null
   is_favorite: boolean
+  last_amount_grams: number | null
   created_at: string
 }
 

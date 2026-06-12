@@ -33,6 +33,7 @@ export default function SearchPage() {
 
   const [tab, setTab] = useState<Tab>('search')
   const [selectedFood, setSelectedFood] = useState<FoodItem | null>(null)
+  const [selectedFoodDefaultGrams, setSelectedFoodDefaultGrams] = useState<number | undefined>(undefined)
   const [scannedFood, setScannedFood] = useState(false)
   const [showScanner, setShowScanner] = useState(false)
   const [scanLoading, setScanLoading] = useState(false)
@@ -73,8 +74,9 @@ export default function SearchPage() {
     }
   }
 
-  const handleFoodSelect = (food: FoodItem) => {
+  const handleFoodSelect = (food: FoodItem, defaultGrams?: number) => {
     setSelectedFood(food)
+    setSelectedFoodDefaultGrams(defaultGrams)
   }
 
   const handleFavoriteFood = (fav: FavoriteFood): FoodItem => ({
@@ -98,24 +100,22 @@ export default function SearchPage() {
     try {
       await addEntry(selectedFood, amountGrams, portionLabel, mealType)
 
-      // Save to favorites if not already there
-      const alreadyFav = favorites.some((f) => f.food_id === selectedFood.id)
-      if (!alreadyFav) {
-        await api.post('/favorites', {
-          food_id: selectedFood.id,
-          food_name: selectedFood.name,
-          food_brand: selectedFood.brand ?? null,
-          calories_per_100g: selectedFood.calories_per_100g,
-          protein_per_100g: selectedFood.protein_per_100g,
-          carbs_per_100g: selectedFood.carbs_per_100g,
-          fat_per_100g: selectedFood.fat_per_100g,
-          fiber_per_100g: selectedFood.fiber_per_100g,
-          barcode: selectedFood.barcode ?? null,
-          package_weight_g: selectedFood.package_weight_g ?? null,
-          image_url: selectedFood.image_url ?? null,
-        })
-        refetchFavorites()
-      }
+      // Save/update favorite with last used amount
+      await api.post('/favorites', {
+        food_id: selectedFood.id,
+        food_name: selectedFood.name,
+        food_brand: selectedFood.brand ?? null,
+        calories_per_100g: selectedFood.calories_per_100g,
+        protein_per_100g: selectedFood.protein_per_100g,
+        carbs_per_100g: selectedFood.carbs_per_100g,
+        fat_per_100g: selectedFood.fat_per_100g,
+        fiber_per_100g: selectedFood.fiber_per_100g,
+        barcode: selectedFood.barcode ?? null,
+        package_weight_g: selectedFood.package_weight_g ?? null,
+        image_url: selectedFood.image_url ?? null,
+        last_amount_grams: amountGrams,
+      })
+      refetchFavorites()
 
       // Rewards
       if (profile) {
@@ -183,7 +183,8 @@ export default function SearchPage() {
           <PortionSelector
             food={selectedFood}
             onConfirm={handleConfirmPortion}
-            onCancel={() => setSelectedFood(null)}
+            onCancel={() => { setSelectedFood(null); setSelectedFoodDefaultGrams(undefined) }}
+            defaultGrams={selectedFoodDefaultGrams}
           />
         )}
 
@@ -233,7 +234,7 @@ export default function SearchPage() {
                         />
                       </button>
                       <button
-                        onClick={() => handleFoodSelect(handleFavoriteFood(fav))}
+                        onClick={() => handleFoodSelect(handleFavoriteFood(fav), fav.last_amount_grams ?? undefined)}
                         className="flex-1 min-w-0 text-left"
                       >
                         <p className="text-sm font-medium text-slate-100 truncate">{fav.food_name}</p>
