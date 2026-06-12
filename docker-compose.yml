@@ -31,6 +31,9 @@ services:
       PORT: 3002
       NODE_ENV: production
       MTLS_ENABLED: ${MTLS_ENABLED:-false}
+      REGISTRATION_ENABLED: ${REGISTRATION_ENABLED:-true}
+      ALLOWED_ORIGIN: ${ALLOWED_ORIGIN:-*}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     depends_on:
       db:
         condition: service_healthy
