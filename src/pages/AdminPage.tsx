@@ -5,7 +5,7 @@ import { useProfile } from '../hooks/useProfile'
 import { api } from '../lib/api'
 import Layout from '../components/Layout'
 import type { Profile } from '../types'
-import { Shield, ShieldOff, Key, UserPlus, ShieldCheck, ArrowLeft } from 'lucide-react'
+import { Shield, ShieldOff, Key, UserPlus, ShieldCheck, ArrowLeft, Bot, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 
 export default function AdminPage() {
@@ -18,6 +18,13 @@ export default function AdminPage() {
     queryKey: ['admin_users'],
     queryFn: () => api.get('/admin/users') as Promise<Profile[]>,
     enabled: !!profile?.is_admin,
+  })
+
+  const { data: aiStatus, refetch: refetchAiStatus, isFetching: aiStatusFetching } = useQuery({
+    queryKey: ['ai_status'],
+    queryFn: () => api.get('/ai/status') as Promise<{ configured: boolean; ok: boolean; error?: string }>,
+    enabled: !!profile?.is_admin,
+    staleTime: 0,
   })
 
   const [resetPasswordUserId, setResetPasswordUserId] = useState<string | null>(null)
@@ -149,6 +156,56 @@ export default function AdminPage() {
             <ShieldCheck size={20} className="text-green-400" />
             <h2 className="text-lg font-bold text-slate-100">Administration</h2>
           </div>
+        </div>
+
+        {/* OpenAI Integration Status */}
+        <div className="bg-slate-800 rounded-2xl p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Bot size={16} className="text-slate-400" />
+              <h3 className="text-sm font-semibold text-slate-300">KI-Portionsprüfung (OpenAI)</h3>
+            </div>
+            <button
+              onClick={() => refetchAiStatus()}
+              disabled={aiStatusFetching}
+              className="text-xs text-slate-400 hover:text-slate-200 transition-colors disabled:opacity-50"
+            >
+              {aiStatusFetching ? 'Prüft…' : 'Erneut prüfen'}
+            </button>
+          </div>
+
+          {!aiStatus ? (
+            <p className="text-xs text-slate-500">Wird geladen…</p>
+          ) : !aiStatus.configured ? (
+            <div className="flex items-start gap-3 bg-slate-700 rounded-xl p-3">
+              <AlertCircle size={16} className="text-slate-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm text-slate-300 font-medium">Nicht konfiguriert</p>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Setze <code className="bg-slate-600 px-1 rounded">OPENAI_API_KEY</code> in der <code className="bg-slate-600 px-1 rounded">.env</code> Datei und starte den Container neu, um die Portionsprüfung zu aktivieren.
+                </p>
+              </div>
+            </div>
+          ) : aiStatus.ok ? (
+            <div className="flex items-center gap-3 bg-green-500/10 border border-green-500/20 rounded-xl p-3">
+              <CheckCircle size={16} className="text-green-400 flex-shrink-0" />
+              <div>
+                <p className="text-sm text-green-400 font-medium">Verbunden</p>
+                <p className="text-xs text-slate-400 mt-0.5">OpenAI API ist erreichbar. Portionsprüfung aktiv für alle Nutzer.</p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-start gap-3 bg-red-500/10 border border-red-500/20 rounded-xl p-3">
+              <XCircle size={16} className="text-red-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm text-red-400 font-medium">Verbindung fehlgeschlagen</p>
+                <p className="text-xs text-slate-400 mt-0.5">API-Key hinterlegt, aber Verbindung nicht möglich.</p>
+                {aiStatus.error && (
+                  <p className="text-xs text-red-300 mt-1 font-mono break-all">{aiStatus.error}</p>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* User list */}

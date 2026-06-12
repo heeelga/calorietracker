@@ -1,8 +1,9 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { calculateNutrition } from '../lib/nutrition'
 import { detectPortionType } from '../data/portionSizes'
 import type { FoodItem } from '../types'
-import { X, Check } from 'lucide-react'
+import { X, Check, AlertTriangle, Loader2 } from 'lucide-react'
+import { api } from '../lib/api'
 
 interface PortionSelectorProps {
   food: FoodItem
@@ -75,6 +76,35 @@ export default function PortionSelector({ food, onConfirm, onCancel, defaultGram
     }
     return `${Math.round(amountGrams)} g`
   }, [mode, amountGrams, portionData, sizeIndex, quantity, packageFraction])
+
+  // AI portion validation (debounced, optional — fails silently if not configured)
+  const [aiHint, setAiHint] = useState<string | null>(null)
+  const [aiChecking, setAiChecking] = useState(false)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    setAiHint(null)
+    if (amountGrams <= 0) return
+
+    debounceRef.current = setTimeout(async () => {
+      setAiChecking(true)
+      try {
+        const result = await api.post('/ai/validate-portion', {
+          food_name: food.name,
+          amount_grams: Math.round(amountGrams),
+          portion_label: portionLabel,
+        }) as { ok: boolean; hint?: string }
+        setAiHint(!result.ok && result.hint ? result.hint : null)
+      } catch {
+        // Fail silently
+      } finally {
+        setAiChecking(false)
+      }
+    }, 900)
+
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
+  }, [amountGrams, portionLabel, food.name])
 
   const availableModes: InputMode[] = ['grams']
   if (portionData) availableModes.push('pieces')
@@ -248,6 +278,20 @@ export default function PortionSelector({ food, onConfirm, onCancel, defaultGram
           </div>
         </div>
       </div>
+
+      {/* AI portion hint */}
+      {aiChecking && (
+        <div className="flex items-center gap-2 text-slate-500 text-xs">
+          <Loader2 size={12} className="animate-spin" />
+          Mengenangabe wird geprüft…
+        </div>
+      )}
+      {!aiChecking && aiHint && (
+        <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/30 rounded-xl px-3 py-2.5">
+          <AlertTriangle size={14} className="text-amber-400 flex-shrink-0 mt-0.5" />
+          <p className="text-xs text-amber-300">{aiHint}</p>
+        </div>
+      )}
 
       {/* Confirm button */}
       <button

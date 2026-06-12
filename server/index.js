@@ -50,6 +50,7 @@ const favoritesRouter = require('./routes/favorites')
 const adminRouter = require('./routes/admin')
 const dataRouter = require('./routes/data')
 const measurementsRouter = require('./routes/measurements')
+const aiRouter = require('./routes/ai')
 
 app.use('/api/auth', authLimiter, authRouter)
 app.use('/api', apiLimiter)
@@ -62,6 +63,7 @@ app.use('/api/favorites', favoritesRouter)
 app.use('/api/admin', adminRouter)
 app.use('/api/data', dataRouter)
 app.use('/api/measurements', measurementsRouter)
+app.use('/api/ai', aiRouter)
 
 // Serve React app in production
 if (process.env.NODE_ENV === 'production') {
