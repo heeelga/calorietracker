@@ -300,7 +300,101 @@ export const portionSizes: Record<string, PortionData> = {
       { label: 'große Dose (185g)', grams: 185 },
     ],
   },
+  // Getränke — Flaschen & Dosen
+  bier: {
+    category: 'other',
+    unit: 'Flasche/Dose',
+    sizes: [
+      { label: 'Kleines (0,33 l)', grams: 330 },
+      { label: 'Normales (0,5 l)', grams: 500 },
+      { label: 'Großes (0,75 l)', grams: 750 },
+    ],
+  },
+  pils: {
+    category: 'other',
+    unit: 'Flasche/Dose',
+    sizes: [
+      { label: 'Kleines (0,33 l)', grams: 330 },
+      { label: 'Normales (0,5 l)', grams: 500 },
+      { label: 'Großes (0,75 l)', grams: 750 },
+    ],
+  },
+  weizen: {
+    category: 'other',
+    unit: 'Flasche/Glas',
+    sizes: [
+      { label: 'Kleines (0,33 l)', grams: 330 },
+      { label: 'Normales (0,5 l)', grams: 500 },
+      { label: 'Großes (0,75 l)', grams: 750 },
+    ],
+  },
+  wasser: {
+    category: 'other',
+    unit: 'Glas/Flasche',
+    sizes: [
+      { label: 'Glas (200 ml)', grams: 200 },
+      { label: 'Flasche (0,5 l)', grams: 500 },
+      { label: 'Flasche (1 l)', grams: 1000 },
+    ],
+  },
+  saft: {
+    category: 'other',
+    unit: 'Glas/Flasche',
+    sizes: [
+      { label: 'Glas (200 ml)', grams: 200 },
+      { label: 'Glas (250 ml)', grams: 250 },
+      { label: 'Flasche (1 l)', grams: 1000 },
+    ],
+  },
+  cola: {
+    category: 'other',
+    unit: 'Dose/Flasche',
+    sizes: [
+      { label: 'Dose (0,33 l)', grams: 330 },
+      { label: 'Flasche (0,5 l)', grams: 500 },
+      { label: 'Flasche (1 l)', grams: 1000 },
+    ],
+  },
+  limonade: {
+    category: 'other',
+    unit: 'Dose/Flasche',
+    sizes: [
+      { label: 'Dose (0,33 l)', grams: 330 },
+      { label: 'Flasche (0,5 l)', grams: 500 },
+      { label: 'Flasche (1 l)', grams: 1000 },
+    ],
+  },
+  kaffee: {
+    category: 'other',
+    unit: 'Tasse',
+    sizes: [
+      { label: 'Espresso (30 ml)', grams: 30 },
+      { label: 'Tasse (150 ml)', grams: 150 },
+      { label: 'Großer Becher (300 ml)', grams: 300 },
+    ],
+  },
+  tee: {
+    category: 'other',
+    unit: 'Tasse',
+    sizes: [
+      { label: 'kleine Tasse (150 ml)', grams: 150 },
+      { label: 'normale Tasse (200 ml)', grams: 200 },
+      { label: 'großer Becher (300 ml)', grams: 300 },
+    ],
+  },
 }
+
+// Keyword groups for semantic matching when no exact word match is found
+const KEYWORD_GROUPS: { keywords: string[]; key: string }[] = [
+  { keywords: ['bier', 'pils', 'lager', 'ale', 'stout', 'porter', 'alkoholfrei', 'radler', 'shandy', 'weizen', 'helles', 'dunkel', 'export', 'premium'], key: 'bier' },
+  { keywords: ['cola', 'pepsi', 'fanta', 'sprite', 'spezi', 'mezzo', 'fritz', 'club-mate', 'fritz-kola'], key: 'cola' },
+  { keywords: ['wasser', 'mineralwasser', 'sprudel', 'still', 'volvic', 'evian', 'gerolsteiner', 'apollinaris'], key: 'wasser' },
+  { keywords: ['limonade', 'limo', 'brause', 'eistee', 'eistee'], key: 'limonade' },
+  { keywords: ['saft', 'nektar', 'smoothie', 'direktsaft', 'fruchtsaft'], key: 'saft' },
+  { keywords: ['kaffee', 'espresso', 'cappuccino', 'latte', 'americano'], key: 'kaffee' },
+  { keywords: ['tee', 'grüntee', 'schwarztee', 'kräutertee'], key: 'tee' },
+  { keywords: ['milch', 'vollmilch', 'fettarme', 'hafermilch', 'sojamilch', 'mandelmilch', 'oatly'], key: 'milch' },
+]
 
 export function detectPortionType(foodName: string): PortionData | null {
   const normalized = foodName.toLowerCase().trim()
@@ -308,10 +402,18 @@ export function detectPortionType(foodName: string): PortionData | null {
   // Direct match
   if (portionSizes[normalized]) return portionSizes[normalized]
 
-  // Partial match
+  // Word-boundary match — split food name into individual words (min 3 chars)
+  // to avoid "ei" matching inside "alkoholfrei" etc.
+  const words = new Set(normalized.split(/[\s\-_,.()/]+/).filter(w => w.length > 2))
+
   for (const [key, data] of Object.entries(portionSizes)) {
-    if (normalized.includes(key) || key.includes(normalized)) {
-      return data
+    if (words.has(key)) return data
+  }
+
+  // Semantic keyword match for brands / compound words
+  for (const { keywords, key } of KEYWORD_GROUPS) {
+    if (keywords.some(kw => normalized.includes(kw))) {
+      return portionSizes[key] ?? null
     }
   }
 
