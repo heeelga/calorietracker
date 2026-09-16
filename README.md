@@ -92,6 +92,29 @@ Alternatively, use the in-app **Export / Import** feature in the Profile tab to 
 
 ---
 
+## Updating a bare-metal (systemd) deployment
+
+If you run the app directly via the `calorietracker.service` systemd unit (not Docker), **always reinstall the server dependencies after pulling new code**. Frontend and server dependencies are separate `package.json` files, and a pull that adds a backend dependency (e.g. `helmet`) will crash-loop the service with `Error: Cannot find module '…'` until `npm install` is re-run in `server/`.
+
+```bash
+cd /var/www/calorietracker
+git pull
+
+# Rebuild the frontend
+npm ci && npm run build
+
+# Reinstall server dependencies from the lockfile
+cd server && npm ci --omit=dev
+
+# Restart the service
+systemctl restart calorietracker
+journalctl -u calorietracker -f
+```
+
+Running `./setup.sh` again performs the same steps. The systemd unit also runs `npm install --omit=dev` as an `ExecStartPre`, so a missed reinstall self-heals on the next restart instead of looping forever.
+
+---
+
 ## Development
 
 ### Local setup (without Docker)

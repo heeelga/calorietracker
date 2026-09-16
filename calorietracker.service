@@ -7,9 +7,15 @@ Requires=mariadb.service
 Type=simple
 User=root
 WorkingDirectory=/var/www/calorietracker/server
+# Ensure server dependencies are in sync with package.json before starting.
+# This prevents a crash-loop when the code was pulled but `npm install` was
+# not re-run after a dependency (e.g. helmet) was added. `npm install` is
+# idempotent and only touches the network when something is actually missing.
+ExecStartPre=/bin/sh -c 'command -v npm >/dev/null 2>&1 && npm install --omit=dev --no-audit --no-fund || echo "npm not found, skipping dependency sync"'
 ExecStart=/usr/bin/node index.js
 Restart=on-failure
 RestartSec=5
+TimeoutStartSec=300
 Environment=NODE_ENV=production
 EnvironmentFile=/var/www/calorietracker/server/.env
 
