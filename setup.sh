@@ -9,10 +9,10 @@ echo "[1/4] Frontend bauen..."
 npm install
 npm run build
 
-# Install server dependencies
+# Install server dependencies (clean, reproducible install from the lockfile)
 echo "[2/4] Server-Abhängigkeiten installieren..."
 cd server
-npm install --production
+npm ci --omit=dev
 
 # Copy .env if not exists
 if [ ! -f .env ]; then
